@@ -3,7 +3,7 @@ package xerror
 // 1开头系统校验类,2开头用户及用户行为校验类
 const (
 	OK                   = 200  // 通用-Success
-	Error                = 400  // 通用-Error
+	Error                = 400  // 通用-ERROR
 	ServerError          = 1001 // 系统错误
 	ParameterIllegal     = 1002 // 参数不合法
 	NoAuth               = 1003 // 权限不足

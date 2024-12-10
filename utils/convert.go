@@ -1,25 +1,19 @@
 package utils
 
 import (
-	"strconv"
+	"encoding/json"
 	"reflect"
 	"regexp"
-	"encoding/json"
+	"strconv"
 )
 
-type typeConversion struct {
-}
-
-func TypeConvert() *typeConversion {
-	return &typeConversion{}
-}
-
-func (self *typeConversion) StringToInt64(s string) (i int64) {
+func StringToInt64(s string) (i int64) {
 	i, _ = strconv.ParseInt(s, 10, 64)
 
 	return
 }
-func (self *typeConversion) InterfaceToString(value interface{}) string {
+
+func InterfaceToString(value interface{}) string {
 	var key string
 	if value == nil {
 		return key
@@ -74,7 +68,7 @@ func (self *typeConversion) InterfaceToString(value interface{}) string {
 	return key
 }
 
-func (self *typeConversion) InterfaceToInt64(inVal interface{}) int64 {
+func InterfaceToInt64(inVal interface{}) int64 {
 	if inVal == nil {
 		return 0
 	}
@@ -108,7 +102,7 @@ func (self *typeConversion) InterfaceToInt64(inVal interface{}) int64 {
 
 	// 转换为字符串，在其中找数字
 	re := regexp.MustCompile("-?[0-9]+")
-	valueString := self.InterfaceToString(inVal)
+	valueString := InterfaceToString(inVal)
 	numberList := re.FindAllString(valueString, -1)
 	if len(numberList) > 0 {
 		rVal, err := strconv.ParseInt(numberList[0], 10, 64)

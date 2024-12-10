@@ -8,20 +8,13 @@ import (
 	"unsafe"
 )
 
-type randTool struct {
-}
-
-func Rand() *randTool {
-	return &randTool{}
-}
-
 // 生成uuid
-func (t *randTool) GenerateUuid() string {
+func GenerateUuid() string {
 	return uuid.NewV4().String()
 }
 
 // 生成不带横杠的32位uuid
-func (t *randTool) GenerateNoWhippletreeUuid() string {
+func GenerateNoWhippletreeUuid() string {
 	uuidStr := uuid.NewV4().String()
 	uuidStr = strings.ReplaceAll(uuidStr, "-", "")
 
@@ -40,7 +33,7 @@ const (
 	letterIdMax  = 63 / letterIdBits
 )
 
-func (t *randTool) String(n int) string {
+func String(n int) string {
 	b := make([]byte, n)
 	// A rand.Int63() generates 63 random bits, enough for letterIdMax letters!
 	for i, cache, remain := n-1, src.Int63(), letterIdMax; i >= 0; {
@@ -58,7 +51,7 @@ func (t *randTool) String(n int) string {
 	return *(*string)(unsafe.Pointer(&b))
 }
 
-func (t *randTool) Interval64(min, max int64) int64 {
+func Interval64(min, max int64) int64 {
 	if min == max {
 		return min
 	}

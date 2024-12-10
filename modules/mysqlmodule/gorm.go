@@ -1,26 +1,25 @@
-package mysql
+package mysqlmodule
 
 import (
-	"gorm.io/gorm/logger"
-	"gorm.io/gorm"
 	"fmt"
-	"time"
-	"os"
-	"log"
-	"io"
-	driver "gorm.io/driver/mysql"
-	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/gina"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"path"
-	"github.com/soryetong/greasyx/utils"
-	"github.com/soryetong/greasyx/gina"
-	"strings"
+	"gopkg.in/natefinch/lumberjack.v2"
+	driver "gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+	"io"
+	"log"
 	"net/url"
+	"os"
+	"path"
+	"strings"
+	"time"
 )
 
 func init() {
-	console.Append(mysqlCmd)
+	gina.Append(mysqlCmd)
 }
 
 var mysqlCmd = &cobra.Command{
@@ -30,18 +29,21 @@ var mysqlCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		dsn := viper.GetString("MySQL.Dsn")
 		if dsn == "" {
-			_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-error] "+
+			_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] "+
 				"你正在加载MySQL模块，但是你未配置MySQL.Dsn，请先添加配置\n")
 			os.Exit(124)
 		}
 
-		gina.Db = initGorm(dsn, "./")
-		_, _ = fmt.Fprintf(os.Stderr, "\n\033[32m [GREASYX-info] "+
-			"MySQL模块加载成功, 你可以使用 `gina.Db` 进行ORM操作\033[0m\n")
+		initGorm(dsn)
 	},
 }
 
-func initGorm(dsn, logPath string) *gorm.DB {
+func initGorm(dsn string) {
+	viper.SetDefault("MySQL.LogLevel", 3)
+	viper.SetDefault("MySQL.EnableLogWriter", true)
+	viper.SetDefault("MySQL.MaxIdleConn", 10)
+	viper.SetDefault("MySQL.MaxConn", 200)
+	viper.SetDefault("MySQL.SlowThreshold", 200)
 	dsn = ensureTimeout(dsn, "5s")
 	mysqlConfig := driver.Config{
 		DSN:                       dsn,   // DSN data source name
@@ -52,23 +54,26 @@ func initGorm(dsn, logPath string) *gorm.DB {
 		SkipInitializeWithVersion: false, // 根据版本自动配置
 	}
 	db, err := gorm.Open(driver.New(mysqlConfig), &gorm.Config{
-		Logger: getLogger(3, true, logPath),
+		Logger: getLogger(),
 	})
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-error] "+
+		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-ERROR] "+
 			"MySQL连接失败: %s\n", err))
 		os.Exit(124)
 	}
 
 	sqlDB, _ := db.DB()
-	sqlDB.SetMaxIdleConns(10)
-	sqlDB.SetMaxOpenConns(200)
+	sqlDB.SetMaxIdleConns(viper.GetInt("MySQL.MaxIdleConn"))
+	sqlDB.SetMaxOpenConns(viper.GetInt("MySQL.MaxConn"))
 
-	return db
+	gina.Db = db
+	_, _ = fmt.Fprintf(os.Stderr, "\n\033[32m [GREASYX-GINFO] "+
+		"MySQL模块加载成功, 你可以使用 `gina.Db` 进行ORM操作\033[0m\n")
 }
 
 // 切换默认 Logger 使用的 Writer
-func getLogger(logLevel int64, enableWriter bool, logPath string) logger.Interface {
+func getLogger() logger.Interface {
+	logLevel := viper.GetInt("MySQL.LogLevel")
 	var logMode logger.LogLevel
 	switch logLevel {
 	case 1:
@@ -81,8 +86,9 @@ func getLogger(logLevel int64, enableWriter bool, logPath string) logger.Interfa
 		logMode = logger.Info
 	}
 
-	return logger.New(getLogWriter(enableWriter, logPath), logger.Config{
-		SlowThreshold:             200 * time.Millisecond,
+	enableWriter := viper.GetBool("MySQL.EnableLogWriter")
+	return logger.New(getLogWriter(enableWriter), logger.Config{
+		SlowThreshold:             time.Duration(viper.GetInt("MySQL.SlowThreshold")) * time.Millisecond,
 		LogLevel:                  logMode,
 		IgnoreRecordNotFoundError: true,
 		Colorful:                  !enableWriter,
@@ -90,12 +96,22 @@ func getLogger(logLevel int64, enableWriter bool, logPath string) logger.Interfa
 }
 
 // 自定义 Writer
-func getLogWriter(enableWriter bool, logPath string) logger.Writer {
+func getLogWriter(enableWriter bool) logger.Writer {
+	logPath := viper.GetString("Log.Path")
 	var writer io.Writer
 	if enableWriter {
-		fileName := fmt.Sprintf("%s_sql.log", time.Now().Format("20060102"))
-		logFileName := path.Join(logPath, fileName)
-		writer = utils.Tool().NewLumberjack(logFileName)
+		if !strings.HasSuffix(logPath, "/") {
+			logPath += "/"
+		}
+		fileName := fmt.Sprintf("%s%s/mysqlmodule.log", logPath, time.Now().Format("2006-01-02"))
+		writer = &lumberjack.Logger{
+			Filename:   path.Join(logPath, fileName),
+			MaxSize:    viper.GetInt("Log.MaxSize"),    // 单文件最大容量, 单位是MB
+			MaxBackups: viper.GetInt("Log.MaxBackups"), // 最大保留过期文件个数
+			MaxAge:     viper.GetInt("Log.MaxAge"),     // 保留过期文件的最大时间间隔, 单位是天
+			Compress:   viper.GetBool("Log.Compress"),  // 是否需要压缩滚动日志, 使用的gzip压缩
+			LocalTime:  true,                           // 是否使用计算机的本地时间, 默认UTC
+		}
 	} else {
 		writer = os.Stdout
 	}

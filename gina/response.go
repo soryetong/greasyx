@@ -1,13 +1,20 @@
-package xresp
+package gina
 
 import (
+	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/soryetong/greasyx/libs/xerror"
+	"github.com/soryetong/greasyx/utils"
 	"net/http"
 	"time"
-	"github.com/soryetong/greasyx/libs/xerror"
-	"fmt"
-	"github.com/soryetong/greasyx/utils"
 )
+
+type PageResult struct {
+	List        interface{} `json:"list"`
+	Total       int64       `json:"total"`
+	CurrentPage int64       `json:"current_page"`
+	PageSize    int64       `json:"page_size"`
+}
 
 type Response struct {
 	Code    int64       `json:"code"`
@@ -18,13 +25,16 @@ type Response struct {
 }
 
 func Result(ctx *gin.Context, code int64, data interface{}, msg string) {
-	ctx.JSON(http.StatusOK, Response{
+	resp := Response{
 		Code:    code,
 		Msg:     msg,
 		Data:    data,
 		NowTime: time.Now().Unix(),
-		UseTime: useTime(ctx),
-	})
+	}
+	if useTime(ctx) != "" {
+		resp.UseTime = useTime(ctx)
+	}
+	ctx.JSON(http.StatusOK, resp)
 }
 
 func Success(ctx *gin.Context, data interface{}) {
@@ -53,10 +63,9 @@ func Fail(ctx *gin.Context, code int64, msg ...string) {
 func useTime(c *gin.Context) string {
 	startTime, _ := c.Get("requestStartTime")
 	stopTime := time.Now().UnixMicro()
-	runTimeStr := "0.000000"
-	if startTime != nil {
-		runTimeStr = fmt.Sprintf("%.6f", float64(stopTime-utils.TypeConvert().InterfaceToInt64(startTime))/1000000)
+	if startTime == nil {
+		return ""
 	}
 
-	return runTimeStr
+	return fmt.Sprintf("%.6f", float64(stopTime-utils.InterfaceToInt64(startTime))/1000000)
 }
