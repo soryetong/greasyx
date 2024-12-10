@@ -2,7 +2,7 @@ package gina
 
 import (
 	"fmt"
-	"github.com/soryetong/greasyx/utils"
+	"github.com/soryetong/greasyx/helper"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"os"
@@ -27,7 +27,7 @@ var serviceMgrCmd = &cobra.Command{
 		for _, service := range serviceList {
 			eg.Go(func() error {
 				if err := service.OnStart(); err != nil {
-					err = fmt.Errorf("服务 %s: %v", utils.GetCallerName(service), err)
+					err = fmt.Errorf("服务 %s: %v", helper.GetCallerName(service), err)
 					_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] %v", err)
 
 					return err

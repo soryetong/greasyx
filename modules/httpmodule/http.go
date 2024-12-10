@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/soryetong/greasyx/utils"
+	"github.com/soryetong/greasyx/helper"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,7 +26,7 @@ type IHttp struct {
 }
 
 func (self *IHttp) Init(caller interface{}, addr string, timeout time.Duration, engine *gin.Engine) {
-	self.name = utils.GetCallerName(caller)
+	self.name = helper.GetCallerName(caller)
 	self.exit = make(chan error)
 	self.listenAddr = addr
 	self.timeout = timeout

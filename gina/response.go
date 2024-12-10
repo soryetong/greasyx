@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/soryetong/greasyx/libs/xerror"
-	"github.com/soryetong/greasyx/utils"
+	"github.com/soryetong/greasyx/helper"
 	"net/http"
 	"time"
 )
@@ -67,5 +67,5 @@ func useTime(c *gin.Context) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%.6f", float64(stopTime-utils.InterfaceToInt64(startTime))/1000000)
+	return fmt.Sprintf("%.6f", float64(stopTime-helper.InterfaceToInt64(startTime))/1000000)
 }
