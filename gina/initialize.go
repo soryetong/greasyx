@@ -5,13 +5,14 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
+	"github.com/soryetong/greasyx/console"
 )
 
 var configFile string
 
 func init() {
-	rootCmd.Flags().StringVarP(&configFile, "config", "c", "", "config file")
-	Append(greasyxCmd)
+	console.RootCmd.Flags().StringVarP(&configFile, "config", "c", "", "config file")
+	console.Append(greasyxCmd)
 }
 
 var greasyxCmd = &cobra.Command{

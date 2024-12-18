@@ -16,10 +16,11 @@ import (
 	"path"
 	"strings"
 	"time"
+	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
-	gina.Append(mysqlCmd)
+	console.Append(mysqlCmd)
 }
 
 var mysqlCmd = &cobra.Command{

@@ -9,10 +9,11 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"os"
+	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
-	gina.Append(mongoCmd)
+	console.Append(mongoCmd)
 }
 
 var mongoCmd = &cobra.Command{

@@ -1,23 +1,17 @@
-package gina
+package console
 
 import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 )
-
-func Run() {
-	if err := rootCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] cmd run err: %s\n", err)
-		os.Exit(104)
-	}
-}
 
 type runFunc func(cmd *cobra.Command, args []string)
 
 var mapCommand = make(map[string]runFunc)
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "Root",
 	Short: "go gin frame",
 	Long:  `Web project scaffolding based on go+gin framework`,
@@ -31,7 +25,8 @@ var rootCmd = &cobra.Command{
 		mapCommand["Gina"](cmd, args)
 
 		for name, runFunc := range mapCommand {
-			if name == "Start" || name == "Gina" {
+			name = strings.ToUpper(name)
+			if name == "START" || name == "GINA" || name == "AUTOC" {
 				continue
 			}
 			runFunc(cmd, args)
@@ -44,7 +39,7 @@ var rootCmd = &cobra.Command{
 
 func Append(cmdList ...*cobra.Command) {
 	for _, cmd := range cmdList {
-		rootCmd.AddCommand(cmd)
+		RootCmd.AddCommand(cmd)
 		mapCommand[cmd.Use] = cmd.Run
 	}
 }

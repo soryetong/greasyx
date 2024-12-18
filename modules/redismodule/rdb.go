@@ -10,10 +10,11 @@ import (
 	"os"
 	"strings"
 	"time"
+	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
-	gina.Append(redisCmd)
+	console.Append(redisCmd)
 }
 
 var redisCmd = &cobra.Command{

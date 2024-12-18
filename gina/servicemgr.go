@@ -6,10 +6,11 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"os"
+	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
-	Append(serviceMgrCmd)
+	console.Append(serviceMgrCmd)
 }
 
 var serviceMgrCmd = &cobra.Command{
