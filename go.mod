@@ -1,8 +1,10 @@
 module github.com/soryetong/greasyx
 
-go 1.24.1
+go 1.24
 
 require (
+	github.com/casbin/casbin/v2 v2.103.0
+	github.com/casbin/gorm-adapter/v3 v3.32.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-playground/locales v0.14.1
 	github.com/go-playground/universal-translator v0.18.1
@@ -25,8 +27,6 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.8.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
-	github.com/casbin/casbin/v2 v2.103.0 // indirect
-	github.com/casbin/gorm-adapter/v3 v3.32.0 // indirect
 	github.com/casbin/govaluate v1.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
