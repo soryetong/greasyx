@@ -13,6 +13,12 @@ func StringToInt64(s string) (i int64) {
 	return
 }
 
+func Int64ToString(i int64) (s string) {
+	s = strconv.FormatInt(i, 10)
+
+	return
+}
+
 func InterfaceToString(value interface{}) string {
 	var key string
 	if value == nil {

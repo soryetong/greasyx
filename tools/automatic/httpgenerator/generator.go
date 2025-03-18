@@ -16,8 +16,9 @@ type FieldSpec struct {
 }
 
 type ServiceSpec struct {
-	Name   string
-	Routes []*RouteSpec
+	Name       string
+	Middleware string
+	Routes     []*RouteSpec
 }
 
 type RouteSpec struct {

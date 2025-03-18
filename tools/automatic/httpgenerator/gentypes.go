@@ -1,9 +1,11 @@
 package httpgenerator
 
 import (
+	"bytes"
 	"fmt"
-	"path/filepath"
+	"go/format"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -26,7 +28,7 @@ func (self *HttpGenerator) formatStruct(s *TypesStructSpec) string {
 }
 
 // writeToFile writes or updates a Go struct to the specified file.
-func (self *HttpGenerator) writeToTypeFile(filename, structContent string) error {
+func (self *HttpGenerator) writeToTypeFile2(filename, structContent string) error {
 	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
 		return err
 	}
@@ -58,6 +60,47 @@ func (self *HttpGenerator) writeToTypeFile(filename, structContent string) error
 	return os.WriteFile(filename, existingContent, 0644)
 }
 
+// writeToTypeFile writes or updates a Go struct in the specified file.
+func (self *HttpGenerator) writeToTypeFile(filename, structContent string) error {
+	if err := os.MkdirAll(filepath.Dir(filename), os.ModePerm); err != nil {
+		return err
+	}
+
+	structNameRegex := regexp.MustCompile(`(?m)^type\s+(\w+)\s+struct\b`)
+	matches := structNameRegex.FindStringSubmatch(structContent)
+	if len(matches) < 2 {
+		return fmt.Errorf("struct name not found in struct definition")
+	}
+	structName := matches[1]
+	existingContent, err := os.ReadFile(filename)
+	if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	existingCode := string(existingContent)
+	structRegex := regexp.MustCompile(fmt.Sprintf(`(?ms)^type\s+%s\s+struct\s*\{.*?\}\s*(?:\n|$)`, structName))
+	cleanedContent := structRegex.ReplaceAllString(existingCode, "")
+
+	var buffer bytes.Buffer
+	if !strings.Contains(existingCode, "package ") {
+		buffer.WriteString(fmt.Sprintf("package %s\n\n", self.TypesPackageName))
+	}
+
+	if strings.TrimSpace(cleanedContent) != "" {
+		buffer.WriteString(strings.TrimSpace(cleanedContent))
+		buffer.WriteString("\n\n")
+	}
+
+	buffer.WriteString(strings.TrimSpace(structContent))
+	buffer.WriteString("\n")
+
+	formattedCode, err := format.Source(buffer.Bytes())
+	if err != nil {
+		return fmt.Errorf("failed to format Go code: %w\nGenerated Code:\n%s", err, buffer.String())
+	}
+
+	return os.WriteFile(filename, formattedCode, 0644)
+}
+
 func (self *HttpGenerator) GenTypes() (err error) {
 	typePath := filepath.Join(self.Output, self.TypesPackageName)
 	self.TypesPackagePath = filepath.Join(self.ModuleName, typePath)
@@ -75,7 +118,6 @@ func (self *HttpGenerator) GenTypes() (err error) {
 		if err = self.writeToTypeFile(filename, content); err != nil {
 			return err
 		}
-		self.formatFileWithGofmt(filename)
 	}
 
 	return nil

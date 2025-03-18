@@ -1,8 +1,7 @@
 package httpmodule
 
 import (
-	"fmt"
-	"os"
+	"github.com/soryetong/greasyx/console"
 )
 
 // 回调函数, 严格按照注册的顺序执行
@@ -31,8 +30,7 @@ func (self *CallbackMap) Foreach() {
 		return
 	}
 	for _, funcName := range self.nameList {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\033[34m [GREASYX-GINFO] "+
-			"即将执行退出的回调函数: %s \033[0m\n", funcName))
+		console.Echo.Infof("ℹ️ 提示: 即将执行退出的回调函数: %s\n", funcName)
 		self.funcMap[funcName]()
 	}
 }

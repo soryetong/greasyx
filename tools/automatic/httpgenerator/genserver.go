@@ -2,13 +2,13 @@ package httpgenerator
 
 import (
 	"fmt"
-	"github.com/soryetong/greasyx/helper"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/helper"
 )
 
 const serverContentTemplate = `
@@ -21,16 +21,16 @@ import (
 )
 
 func init() {
-	gina.Register(&{{ .ServiceName}}{})
+	gina.Register(&{{ .ServerName}}{})
 }
 
-type {{ .ServiceName}} struct {
+type {{ .ServerName}} struct {
 	*gina.IServer
 
 	httpModule httpmodule.IHttp
 }
 
-func (self *{{ .ServiceName}}) OnStart() (err error) {
+func (self *{{ .ServerName}}) OnStart() (err error) {
 	// 添加回调函数
 	self.httpModule.OnStop(self.exitCallback())
 
@@ -41,7 +41,7 @@ func (self *{{ .ServiceName}}) OnStart() (err error) {
 }
 
 // TODO 添加回调函数, 无逻辑可直接删除这个方法
-func (self *{{ .ServiceName}}) exitCallback() *httpmodule.CallbackMap {
+func (self *{{ .ServerName}}) exitCallback() *httpmodule.CallbackMap {
 	callback := httpmodule.NewStopCallbackMap()
 	callback.Append("exit", func() {
 		gina.Log.Info("这是程序退出后的回调函数, 执行你想要执行的逻辑, 无逻辑可以直接删除这段代码")
@@ -52,28 +52,32 @@ func (self *{{ .ServiceName}}) exitCallback() *httpmodule.CallbackMap {
 `
 
 func (self *HttpGenerator) GenServer() (err error) {
-	split := strings.Split(self.Output, "/")
-	outputName := split[len(split)-1]
-	packageName := outputName
-	if outputName == "" {
-		outputName = "http"
-		packageName, _ = helper.GetModuleName()
-		if strings.Contains(packageName, "-") {
-			packageName = strings.ReplaceAll(packageName, "-", "_")
-		}
+	split := strings.Split(strings.TrimLeft(self.Output, "./"), "/")
+	outputName := "http"
+	if len(split) >= 2 {
+		outputName = split[0]
 	}
 
-	c := cases.Title(language.English)
-	contentTmpl, err := template.New("service").Parse(serverContentTemplate)
+	serverName := fmt.Sprintf("%sServer", helper.CapitalizeFirst(outputName))
+	path := filepath.Join(self.Output, "server")
+	if err = os.MkdirAll(path, os.ModePerm); err != nil {
+		return err
+	}
+	filename := filepath.Join(path, fmt.Sprintf("%s.go", serverName))
+	if _, err = os.Stat(filename); err == nil {
+		console.Echo.Info(fmt.Sprintf("服务文件: %s 已存在,不进行重写", filename))
+		return nil
+	}
+
+	contentTmpl, err := template.New("server").Parse(serverContentTemplate)
 	if err != nil {
 		return err
 	}
 
 	var builder strings.Builder
-	serviceName := fmt.Sprintf("%sService", c.String(outputName))
 	data := map[string]interface{}{
-		"PackageName":       strings.ToLower(packageName),
-		"ServiceName":       serviceName,
+		"PackageName":       "server",
+		"ServerName":        serverName,
 		"RouterPackagePath": self.RouterPath,
 	}
 	if err = contentTmpl.Execute(&builder, data); err != nil {
@@ -81,22 +85,17 @@ func (self *HttpGenerator) GenServer() (err error) {
 	}
 	builder.WriteString("")
 
-	path := filepath.Join(self.Output, "server")
-	if err = os.MkdirAll(path, os.ModePerm); err != nil {
-		return err
-	}
-	filename := filepath.Join(path, fmt.Sprintf("%s.go", serviceName))
 	file, err := os.Create(filename)
 	defer file.Close()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(fmt.Sprintf("[GREASYX-TOOLS-INFO] 正在生成服务文件: %s", filename))
+	console.Echo.Info("正在生成服务文件: ", filename)
 	if _, err = file.WriteString(builder.String()); err != nil {
 		return err
 	}
-	self.normalFormatFileWithGofmt(filename)
+	self.formatFileWithGofmt(filename)
 
 	return nil
 }

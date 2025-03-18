@@ -2,14 +2,13 @@ package httpgenerator
 
 import (
 	"fmt"
-	"github.com/soryetong/greasyx/helper"
-	"github.com/soryetong/greasyx/tools/automatic/config"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/tools/automatic/config"
 )
 
 const handlerHeaderTemplate = `
@@ -21,38 +20,44 @@ import (
 	"{{ .LogicPackagePath}}"
 	{{if .HasTypes}} "{{.TypesPackagePath}}" {{end}}
 	{{if .HasTypes}} "github.com/soryetong/greasyx/libs/xerror" {{end}}
+	{{if .HasRestFul}} "github.com/soryetong/greasyx/helper" {{end}}
 )
 `
 
 const handlerContentTemplate = `
 
 func {{ .HandlerName }}(ctx *gin.Context) {
-{{if .RequestType}}	var req {{.TypesPackageName}}.{{.RequestType}}
+{{if .PathParam}} id := helper.StringToInt64(ctx.Param("{{.PathParam}}"))
+if helper.IsValidNumber(id) == false {
+		gina.FailWithMessage(ctx, "参数错误")
+		return
+	}
+{{end}}{{if .RequestType}}	var req {{.TypesPackageName}}.{{.RequestType}}
 	if err := ctx.ShouldBind(&req); err != nil {
 		gina.FailWithMessage(ctx, xerror.Trans(err))
 		return
 	}
 
-	{{if .ResponseType}}resp, err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx, &req)
+	{{if .ResponseType}}resp, err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx{{if .PathParam}}, id{{end}}, &req)
 	if err != nil {
 		gina.FailWithMessage(ctx, err.Error())
 		return
 	}
 
 	gina.Success(ctx, resp)
-	{{else}}if err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx, &req);err != nil {
+	{{else}}if err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx{{if .PathParam}}, id{{end}}, &req); err != nil {
 		gina.FailWithMessage(ctx, err.Error())
 		return
 	}
 
-	gina.Success(ctx, nil){{end}}{{else}}{{if .ResponseType}}resp, err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx)
+	gina.Success(ctx, nil){{end}}{{else}}{{if .ResponseType}}resp, err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx{{if .PathParam}}, id{{end}})
 	if err != nil {
 		gina.FailWithMessage(ctx, err.Error())
 		return
 	}
 
 	gina.Success(ctx, resp)
-	{{else}}if err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx);err != nil {
+	{{else}}if err := {{ .LogicPackageName}}.{{ .LogicName}}.{{ .LogicFuncName}}(ctx{{if .PathParam}}, id{{end}}); err != nil {
 		gina.FailWithMessage(ctx, err.Error())
 		return
 	}
@@ -67,7 +72,7 @@ func (self *HttpGenerator) GenHandler() (err error) {
 			continue
 		}
 
-		logicTempPath := helper.CamelToSlash(datum.Name)
+		logicTempPath := helper.SeparateCamel(datum.Name, "/")
 		if self.FileType == config.Logic_Handler_File_Type {
 			handlerPath = filepath.Join(handlerPath, logicTempPath)
 			self.HandlerPackPath[strings.ToLower(datum.Name)] = filepath.Join(self.ModuleName, handlerPath)
@@ -77,21 +82,20 @@ func (self *HttpGenerator) GenHandler() (err error) {
 			return self.tileHandlerWrite(datum, handlerPath)
 		}
 
-		split := strings.Split(logicTempPath, "/")
-		handlerPath = filepath.Join(handlerPath, strings.Join(split[:len(split)-1], "/"))
+		// split := strings.Split(logicTempPath, "/")
+		// handlerPath = filepath.Join(handlerPath, strings.Join(split[:len(split)-1], "/"))
 		self.HandlerPackPath[strings.ToLower(datum.Name)] = filepath.Join(self.ModuleName, handlerPath)
 		if err = os.MkdirAll(handlerPath, os.ModePerm); err != nil {
 			return err
 		}
 
-		return self.combineHandlerWrite(datum, handlerPath, split[len(split)-1])
+		return self.combineHandlerWrite(datum, handlerPath)
 	}
 
 	return nil
 }
 
-func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerPath, fileName string) (err error) {
-	c := cases.Title(language.English)
+func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerPath string) (err error) {
 	headerTmpl, err := template.New("handler").Parse(handlerHeaderTemplate)
 	if err != nil {
 		return err
@@ -102,23 +106,24 @@ func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerP
 	}
 
 	var builder strings.Builder
-	var hasTypes bool
+	var hasTypes, hasRestFul bool
 	for _, route := range service.Routes {
 		if hasTypes == false {
 			hasTypes = route.RequestType != ""
 		}
+		if hasRestFul == false {
+			hasRestFul = route.RustFulKey != ""
+		}
 	}
 
-	split := strings.Split(helper.CamelToSlash(service.Name), "/")
+	split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
 	packageName := "handler"
-	if len(split) >= 2 {
-		packageName = split[len(split)-2]
-	}
 	headerData := map[string]interface{}{
 		"PackageName":      packageName,
 		"HasTypes":         hasTypes,
 		"TypesPackagePath": self.TypesPackagePath,
 		"LogicPackagePath": self.LogicPackagePath[strings.ToLower(service.Name)],
+		"HasRestFul":       hasRestFul,
 	}
 	if err = headerTmpl.Execute(&builder, headerData); err != nil {
 		return err
@@ -128,13 +133,14 @@ func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerP
 	for _, route := range service.Routes {
 		self.HandlerPackName[strings.ToLower(route.Name+service.Name)] = packageName
 		logicData := map[string]string{
-			"HandlerName":      c.String(route.Name),
+			"HandlerName":      helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(route.Name),
 			"RequestType":      route.RequestType,
 			"ResponseType":     route.ResponseType,
 			"TypesPackageName": self.TypesPackageName,
 			"LogicFuncName":    self.LogicFuncName[strings.ToLower(route.Name)],
 			"LogicPackageName": self.LogicPackageName[strings.ToLower(service.Name)],
 			"LogicName":        self.LogicName[strings.ToLower(service.Name)],
+			"PathParam":        route.RustFulKey,
 		}
 		if err = contentTmpl.Execute(&builder, logicData); err != nil {
 			return err
@@ -142,7 +148,7 @@ func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerP
 		builder.WriteString("")
 	}
 
-	filename := filepath.Join(nowHandlerPath, fmt.Sprintf("%s.go", strings.ToLower(fileName)))
+	filename := filepath.Join(nowHandlerPath, fmt.Sprintf("%s.go", strings.ToLower(strings.Join(split, "_"))))
 	file, err := os.Create(filename)
 	defer file.Close()
 	if err != nil {
@@ -163,26 +169,26 @@ func (self *HttpGenerator) tileHandlerWrite(service *ServiceSpec, nowLogicPath s
 		return err
 	}
 
-	split := strings.Split(helper.CamelToSlash(service.Name), "/")
-	c := cases.Title(language.English)
+	split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
 	for _, route := range service.Routes {
 		packageName := strings.ToLower(split[len(split)-1])
 		self.HandlerPackName[strings.ToLower(route.Name+service.Name)] = packageName
 
 		var builder strings.Builder
-		newName := strings.ToLower(c.String(route.Name))
+		newName := strings.ToLower(route.Name)
 		logicData := map[string]interface{}{
 			"PackageName":      packageName,
 			"HasTypes":         route.RequestType != "",
 			"TypesPackagePath": self.TypesPackagePath,
 			"LogicPackagePath": self.LogicPackagePath[strings.ToLower(service.Name)],
-			"HandlerName":      c.String(route.Name),
+			"HandlerName":      helper.CapitalizeFirst(route.Name),
 			"RequestType":      route.RequestType,
 			"ResponseType":     route.ResponseType,
 			"TypesPackageName": self.TypesPackageName,
 			"LogicFuncName":    self.LogicFuncName[newName],
 			"LogicPackageName": self.LogicPackageName[newName],
 			"LogicName":        self.LogicName[newName],
+			"PathParam":        route.RustFulKey,
 		}
 		if err = tmpl.Execute(&builder, logicData); err != nil {
 			return err

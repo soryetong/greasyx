@@ -30,9 +30,7 @@ var mysqlCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		dsn := viper.GetString("MySQL.Dsn")
 		if dsn == "" {
-			_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] "+
-				"你正在加载MySQL模块，但是你未配置MySQL.Dsn，请先添加配置\n")
-			os.Exit(124)
+			console.Echo.Fatalf("❌ 错误: 你正在加载MySQL模块，但是你未配置MySQL.Dsn，请先添加配置\n")
 		}
 
 		initGorm(dsn)
@@ -58,9 +56,7 @@ func initGorm(dsn string) {
 		Logger: getLogger(),
 	})
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-ERROR] "+
-			"MySQL连接失败: %s\n", err))
-		os.Exit(124)
+		console.Echo.Fatalf("❌ 错误: MySQL连接失败: %s\n", err)
 	}
 
 	sqlDB, _ := db.DB()
@@ -68,8 +64,7 @@ func initGorm(dsn string) {
 	sqlDB.SetMaxOpenConns(viper.GetInt("MySQL.MaxConn"))
 
 	gina.Db = db
-	_, _ = fmt.Fprintf(os.Stderr, "\n\033[32m [GREASYX-GINFO] "+
-		"MySQL模块加载成功, 你可以使用 `gina.Db` 进行ORM操作\033[0m\n")
+	console.Echo.Info("ℹ️ 提示: MySQL模块加载成功, 你可以使用 `gina.Db` 进行ORM操作\n")
 }
 
 // 切换默认 Logger 使用的 Writer

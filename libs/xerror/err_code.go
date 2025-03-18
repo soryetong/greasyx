@@ -4,7 +4,7 @@ package xerror
 const (
 	OK                   = 200  // 通用-Success
 	Error                = 400  // 通用-ERROR
-	ServerError          = 1001 // 系统错误
+	ServerError          = 500  // 系统错误
 	ParameterIllegal     = 1002 // 参数不合法
 	NoAuth               = 1003 // 权限不足
 	NotData              = 1004 // 没有数据

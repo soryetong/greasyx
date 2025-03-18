@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/soryetong/greasyx/tools/automatic/config"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/tools/automatic/config"
 )
 
 type XContext struct {
@@ -60,12 +62,12 @@ func (self *HttpGenerator) Generate() (err error) {
 }
 
 func (self *HttpGenerator) start(filename string) (err error) {
-	fmt.Println("[GREASYX-TOOLS-INFO] 开始解析HTTP代码文件:", filename)
+	console.Echo.Debugf("开始API文件: %s 内容读取", filename)
 	fileContentByte, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成API文件解析")
+	console.Echo.Debug("已完成API文件解析\n")
 
 	filenameArr := strings.Split(filepath.Base(filename), ".")
 	if len(filenameArr) <= 0 {
@@ -73,46 +75,55 @@ func (self *HttpGenerator) start(filename string) (err error) {
 	}
 	fileContent := string(fileContentByte)
 	groupName := filenameArr[0]
+
 	// Parse the structs and routes.
+	console.Echo.Debug("开始Struct内容解析")
 	if err = self.PTypesStruct(fileContent); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Struct内容解析")
+	console.Echo.Debug("已完成Struct内容解析\n")
+
+	console.Echo.Debug("开始Service服务解析")
 	if err = self.PRoutesService(fileContent); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Service服务解析")
+	console.Echo.Debug("已完成Service服务解析\n")
 
 	// Generate types.
+	console.Echo.Debug("开始Struct代码生成")
 	if err = self.GenTypes(); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Struct代码生成")
+	console.Echo.Debug("已完成Struct代码生成\n")
 
 	// Generate logic.
+	console.Echo.Debug("开始Logic代码生成")
 	if err = self.GenLogic(); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Logic代码生成")
+	console.Echo.Debug("已完成Logic代码生成\n")
 
 	// Generate handler.
+	console.Echo.Debug("开始Handler代码生成")
 	if err = self.GenHandler(); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Handler代码生成")
+	console.Echo.Debug("已完成Handler代码生成\n")
 
 	// Generate router.
+	console.Echo.Debug("开始Router代码生成")
 	if err = self.GenRouter(groupName); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Router代码生成")
+	console.Echo.Debug("已完成Router代码生成\n")
 
 	// Generate server.
+	console.Echo.Debug("开始Server代码生成")
 	if err = self.GenServer(); err != nil {
 		return err
 	}
-	fmt.Println("[GREASYX-TOOLS-INFO] 已完成Server代码生成")
-	fmt.Println("[GREASYX-TOOLS-INFO] 文件:", filename, "代码生成已完成")
+	console.Echo.Debug("已完成Server代码生成\n")
+	console.Echo.Infof("ℹ️ 提示: 文件: %s 代码生成已完成\n", filename)
 
 	return nil
 }

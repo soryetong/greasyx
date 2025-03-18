@@ -3,13 +3,16 @@ package httpmodule
 import (
 	"context"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/soryetong/greasyx/helper"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/helper"
 )
 
 type IHttp struct {
@@ -48,13 +51,13 @@ func (self *IHttp) Start() error {
 	self.OnInit()
 	go func() {
 		if err := self.srv.ListenAndServe(); err != nil {
+			console.Echo.Errorf("❌  错误: 服务启动异常 %s", err)
 			self.exit <- err
 		}
 	}()
 
 	self.tls = false
-	_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n\033[32m [GREASYX-GINFO] "+
-		"服务 %s 启动成功，地址为: %s \033[0m\n", self.name, self.getServerAddr()))
+	console.Echo.Infof("ℹ️ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
 
 	return self.running()
 }
@@ -63,13 +66,13 @@ func (self *IHttp) StartTLS(certFile, keyFile string) error {
 	self.OnInit()
 	go func() {
 		if err := self.srv.ListenAndServeTLS(certFile, keyFile); err != nil {
+			console.Echo.Errorf("❌  错误: 服务启动异常 %s", err)
 			self.exit <- err
 		}
 	}()
 
 	self.tls = true
-	_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n\033[32m [GREASYX-GINFO] "+
-		"服务 %s 启动成功，地址为: %s \033[0m\n", self.name, self.getServerAddr()))
+	console.Echo.Infof("ℹ️ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
 
 	return self.running()
 }
@@ -87,8 +90,7 @@ func (self *IHttp) running() error {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*self.timeout)
 			defer cancel()
 			if err := self.srv.Shutdown(ctx); err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-ERROR] "+
-					"服务停机失败: %s\n", err))
+				// console.Echo.Warnf("⚠️ 警告: 服务停机失败: %s\n", err)
 
 				return err
 			}
@@ -102,5 +104,12 @@ func (self *IHttp) getServerAddr() string {
 		prefix = "https"
 	}
 
-	return fmt.Sprintf("%s://%s", prefix, self.listenAddr)
+	addr := self.listenAddr
+	addrArr := strings.Split(self.listenAddr, ":")
+	if addrArr[0] == "" {
+		addrArr[0] = helper.GetLocalIP()
+		addr = strings.Join(addrArr, ":")
+	}
+
+	return fmt.Sprintf("%s://%s", prefix, addr)
 }

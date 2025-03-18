@@ -2,12 +2,10 @@ package redismodule
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-redis/redis/v8"
 	"github.com/soryetong/greasyx/gina"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 	"strings"
 	"time"
 	"github.com/soryetong/greasyx/console"
@@ -24,9 +22,7 @@ var redisCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		addr := viper.GetString("Redis.Addr")
 		if addr == "" {
-			_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] "+
-				"你正在加载Redis模块，但是你未配置Redis.Addr，请先添加配置\n")
-			os.Exit(124)
+			console.Echo.Fatalf("❌ 错误: 你正在加载Redis模块，但是你未配置Redis.Addr，请先添加配置\n")
 		}
 
 		viper.SetDefault("Redis.IsCluster", false)
@@ -37,8 +33,7 @@ var redisCmd = &cobra.Command{
 			viper.GetInt("Redis.Db"),
 			viper.GetBool("Redis.IsCluster"),
 		)
-		_, _ = fmt.Fprintf(os.Stderr, "\n\033[32m [GREASYX-GINFO] "+
-			"Redis模块加载成功, 你可以使用 `gina.Rdb` 进行数据操作\033[0m\n")
+		console.Echo.Infof("ℹ️ 提示: Redis模块加载成功, 你可以使用 `gina.Rdb` 进行数据操作\n")
 	},
 }
 
@@ -76,9 +71,7 @@ func initSingleNode(addr, password string, db int) redis.Cmdable {
 
 	_, err := rdbClient.Ping(context.Background()).Result()
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-ERROR] "+
-			"Redis连接失败: %s\n", err))
-		os.Exit(124)
+		console.Echo.Fatalf("❌ 错误: Redis连接失败: %s\n", err)
 	}
 
 	return rdbClient
@@ -115,9 +108,7 @@ func initCluster(addr, password string, db int) redis.Cmdable {
 
 	_, err := rdbClient.Ping(context.Background()).Result()
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-ERROR] "+
-			"Redis集群连接失败: %s\n", err))
-		os.Exit(124)
+		console.Echo.Fatalf("❌ 错误: Redis集群连接失败: %s\n", err)
 	}
 
 	return rdbClient

@@ -60,22 +60,30 @@ func (self *HttpGenerator) parseFieldDeclaration(declaration string) (*FieldSpec
 
 func (self *HttpGenerator) PRoutesService(content string) (err error) {
 	var services []*ServiceSpec
-	serviceRegex := regexp.MustCompile(`service\s+(\w+)\s*{([^}]*)}`)
+	// serviceRegex := regexp.MustCompile(`service\s+(\w+)\s*{([^}]*)}`)
+	serviceRegex := regexp.MustCompile(`service\s+(\w+)(?:\s+Use\s+([\w,]+))?\s*{([^}]*)}`)
 	serviceMatches := serviceRegex.FindAllStringSubmatch(content, -1)
 	for _, serviceMatch := range serviceMatches {
 		var service ServiceSpec
 		service.Name = serviceMatch[1]
-		routesBlock := serviceMatch[2]
+		service.Middleware = serviceMatch[2]
+		routesBlock := serviceMatch[3]
 
-		// routeRegex := regexp.MustCompile(`(\w+)\s+(\w+)\s*(?:\((\w+)\))?\s*returns\s*(?:\((\w+)\))?`)
-		routeRegex := regexp.MustCompile(`(\w+)\s+(\w+)(?::(\w+))?\s*(?:\((\w+)\))?\s*returns\s*(?:\((\w+)\))?`)
+		routeRegex := regexp.MustCompile(`(\w+)\s+([\w/:]+)(?::(\w+))?\s*(?:\(([\[\]\w]+)\))?\s*returns\s*(?:\(([\[\]\w]+)\))?`)
 		routeMatches := routeRegex.FindAllStringSubmatch(routesBlock, -1)
 		for _, routeMatch := range routeMatches {
+			nameArr := strings.Split(routeMatch[2], "/")
+			nameVal := routeMatch[2]
+			rustFulVal := routeMatch[3]
+			if len(nameArr) > 1 {
+				nameVal = nameArr[0]
+				rustFulVal = strings.Trim(nameArr[1], ":")
+			}
 			service.Routes = append(service.Routes, &RouteSpec{
 				Method:       routeMatch[1],
 				Path:         routeMatch[2],
-				Name:         routeMatch[2],
-				RustFulKey:   routeMatch[3],
+				Name:         nameVal,
+				RustFulKey:   rustFulVal,
 				RequestType:  routeMatch[4],
 				ResponseType: routeMatch[5],
 			})

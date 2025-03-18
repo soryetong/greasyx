@@ -1,13 +1,11 @@
 package automatic
 
 import (
-	"fmt"
 	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/helper"
 	"github.com/soryetong/greasyx/tools/automatic/config"
 	"github.com/soryetong/greasyx/tools/automatic/httpgenerator"
 	"github.com/spf13/cobra"
-	"os"
 	"strings"
 )
 
@@ -25,11 +23,10 @@ var autoCCmd = &cobra.Command{
 }
 
 func runFunc(cmd *cobra.Command, args []string) {
+	console.Echo = helper.InitSugaredLogger()
 	moduleName, err := helper.GetModuleName()
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-TOOLS-ERROR] "+
-			"无法获取当前项目Module名, 错误为: [%v] \n", err))
-		os.Exit(124)
+		console.Echo.Fatalf("❌ 错误: 无法获取当前项目Module名, 错误为: [%v] \n", err)
 	}
 	for _, arg := range args {
 		argArr := strings.Split(arg, "=")
@@ -41,15 +38,13 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if argMap["src"] == "" {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-TOOLS-ERROR] "+
-			"请通过: [%s], 输入api文件所在的路径 \n", "autoc src={path}"))
-		os.Exit(124)
+		console.Echo.Fatalf("❌ 错误: 请通过: [%s], 输入api文件所在的路径 \n", "autoc src={path}")
 	}
 
 	typePackageName := "types"
+	xCtx := new(httpgenerator.XContext)
 	switch argMap["mode"] {
 	default:
-		xCtx := new(httpgenerator.XContext)
 		xCtx.ModuleName = moduleName
 		xCtx.Output = argMap["output"]
 		xCtx.Src = argMap["src"]
@@ -66,8 +61,6 @@ func runFunc(cmd *cobra.Command, args []string) {
 	}
 
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, fmt.Sprintf("\n[GREASYX-TOOLS-ERROR] "+
-			"自动生成代码失败, 错误为: [%v] \n", err))
-		os.Exit(124)
+		console.Echo.Fatalf("❌ 错误: 自动生成代码失败, 错误为: [%v] \n", err)
 	}
 }

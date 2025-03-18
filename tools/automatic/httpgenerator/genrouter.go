@@ -2,12 +2,13 @@ package httpgenerator
 
 import (
 	"fmt"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/helper"
 )
 
 const routerContentTemplate = `
@@ -16,10 +17,13 @@ package router
 import (
 	"github.com/gin-gonic/gin"
 	"{{ .HandlerPackPath}}"
+	{{if .HasGinaMiddleware}} "github.com/soryetong/greasyx/libs/middleware" {{end}}
+	{{if .HasProjMiddleware}} middleware2 "{{ .ProjMiddlewarePath}}" {{end}}
 )
 
 func Init{{.NowGroupName}}Router(routerGroup *gin.RouterGroup) {
-{{range .Routes}}{{.GroupName}}Group := routerGroup.Group("/{{.RouteGroup}}")
+{{range .Routes}}{{.GroupName}}Group := routerGroup.Group("/{{.RouteGroup}}"){{range .Middleware}}
+{{.GroupName}}Group.Use({{if .InGina}} middleware {{ else }} middleware2 {{end}}.{{ .Name}}()){{end}}
 {{"{"}}{{range .Routes}}
 	{{.GroupName}}Group.{{.Method}}("/{{.Path}}", {{.HandlerPackName}}.{{.HandlerName}}){{end}}
 {{"}"}}{{end}}
@@ -27,14 +31,18 @@ func Init{{.NowGroupName}}Router(routerGroup *gin.RouterGroup) {
 `
 
 type RouteTemplateData struct {
-	NowGroupName    string
-	HandlerPackPath string
-	Routes          []RouteGroupTemplateData
+	NowGroupName       string
+	HandlerPackPath    string
+	HasGinaMiddleware  bool
+	HasProjMiddleware  bool
+	ProjMiddlewarePath string
+	Routes             []RouteGroupTemplateData
 }
 
 type RouteGroupTemplateData struct {
 	GroupName  string
 	RouteGroup string
+	Middleware []RouteMiddleware
 	Routes     []RouteSpecTemplateData
 }
 
@@ -46,9 +54,20 @@ type RouteSpecTemplateData struct {
 	HandlerName     string
 }
 
+type RouteMiddleware struct {
+	GroupName string
+	InGina    bool
+	Name      string
+}
+
+var ownedMiddleware = map[string]struct{}{
+	"Jwt":   {},
+	"Cross": {},
+}
+
 func (self *HttpGenerator) GenRouter(groupName string) (err error) {
-	c := cases.Title(language.English)
 	nowRouterPath := filepath.Join(self.Output, "router")
+	middlewarePath := filepath.Join(self.Output, "middleware")
 	self.RouterPath = filepath.Join(self.ModuleName, nowRouterPath)
 	if err = os.MkdirAll(nowRouterPath, os.ModePerm); err != nil {
 		return err
@@ -60,24 +79,48 @@ func (self *HttpGenerator) GenRouter(groupName string) (err error) {
 	}
 
 	templateData := RouteTemplateData{
-		NowGroupName:    c.String(groupName),
-		HandlerPackPath: handlerPackPath,
-		Routes:          []RouteGroupTemplateData{},
+		// NowGroupName:    helper.CapitalizeFirst(groupName),
+		HandlerPackPath:    handlerPackPath,
+		ProjMiddlewarePath: self.ModuleName + "/" + middlewarePath,
+		Routes:             []RouteGroupTemplateData{},
 	}
 
+	newFileName := ""
+	projMiddleware := make(map[string]struct{})
 	for _, service := range self.Services {
+		templateData.NowGroupName = helper.CapitalizeFirst(service.Name)
 		newGroupName := strings.ToLower(service.Name[:1]) + service.Name[1:]
+		split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
+		newFileName = strings.ToLower(strings.Join(split, "_"))
 		group := RouteGroupTemplateData{
 			GroupName:  newGroupName,
 			RouteGroup: strings.ToLower(groupName),
 			Routes:     []RouteSpecTemplateData{},
+		}
+		middlewareArr := strings.Split(service.Middleware, ",")
+		for _, route := range middlewareArr {
+			if route == "" {
+				continue
+			}
+			_, ok := ownedMiddleware[route]
+			group.Middleware = append(group.Middleware, RouteMiddleware{
+				GroupName: newGroupName,
+				Name:      route,
+				InGina:    ok,
+			})
+			if ok {
+				templateData.HasGinaMiddleware = true
+			} else {
+				templateData.HasProjMiddleware = true
+				projMiddleware[route] = struct{}{}
+			}
 		}
 		for _, route := range service.Routes {
 			routeData := RouteSpecTemplateData{
 				GroupName:       newGroupName,
 				Method:          strings.ToUpper(route.Method),
 				Path:            strings.ToLower(route.Path),
-				HandlerName:     c.String(route.Name),
+				HandlerName:     helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(route.Name),
 				HandlerPackName: self.HandlerPackName[strings.ToLower(route.Name+service.Name)],
 			}
 			group.Routes = append(group.Routes, routeData)
@@ -95,21 +138,34 @@ func (self *HttpGenerator) GenRouter(groupName string) (err error) {
 		return err
 	}
 
-	filename := filepath.Join(nowRouterPath, fmt.Sprintf("%s.go", strings.ToLower(groupName)))
+	filename := filepath.Join(nowRouterPath, fmt.Sprintf("%s.go", newFileName))
 	file, err := os.Create(filename)
 	defer file.Close()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(fmt.Sprintf("[GREASYX-TOOLS-INFO] 正在生成路由文件: %s", filename))
+	console.Echo.Info("正在生成路由文件: ", filename)
 	if _, err = file.WriteString(builder.String()); err != nil {
 		return err
 	}
 	self.formatFileWithGofmt(filename)
 
+	// 检测并创建中间件
+	for middlewareName := range projMiddleware {
+		if err = os.MkdirAll(middlewarePath, os.ModePerm); err != nil {
+			return err
+		}
+
+		if exists, _ := helper.FunctionExists(middlewarePath, middlewareName); !exists {
+			if err = self.GenMiddleware(middlewarePath, middlewareName); err != nil {
+				return err
+			}
+		}
+	}
+
 	// 更新入口文件
-	err = self.updateEnterGo(nowRouterPath, fmt.Sprintf("Init%sRouter", c.String(groupName)))
+	err = self.updateEnterGo(nowRouterPath, fmt.Sprintf("Init%sRouter", templateData.NowGroupName))
 
 	return
 }

@@ -1,10 +1,8 @@
 package gina
 
 import (
-	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 	"github.com/soryetong/greasyx/console"
 )
 
@@ -31,7 +29,6 @@ func initConfig() {
 	}
 	viper.SetConfigFile(configFile)
 	if err := viper.ReadInConfig(); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] 读取配置文件错误: %s\n", err)
-		os.Exit(104)
+		console.Echo.Fatalf("❌ 错误: 读取配置文件错误: %s", err)
 	}
 }

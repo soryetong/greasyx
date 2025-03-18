@@ -2,14 +2,14 @@ package httpgenerator
 
 import (
 	"fmt"
-	"github.com/soryetong/greasyx/helper"
-	"github.com/soryetong/greasyx/tools/automatic/config"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/language"
 	"html/template"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/tools/automatic/config"
 )
 
 const logicHeaderTemplate = `
@@ -30,10 +30,10 @@ func New{{.LogicName}}() *{{.LogicName}} {
 
 const logicContentTemplate = `
 
-func (self *{{.LogicName}}) {{.FuncName}}(ctx context.Context,{{if .RequestType}} params *{{.TypesPackageName}}.{{.RequestType}}{{end}}) ({{if .ResponseType}} resp *{{.TypesPackageName}}.{{.ResponseType}},{{end}} err error) {
+func (self *{{.LogicName}}) {{.FuncName}}(ctx context.Context,{{if .PathParam}} {{.PathParam}} int64,{{end}}{{if .RequestType}} params *{{.TypesPackageName}}.{{.RequestType}}{{end}}) ({{if .ResponseType}} resp {{if not (hasPrefix .ResponseType "[]")}}*{{.TypesPackageName}}.{{end}}{{.ResponseType}},{{end}} err error) {
     // TODO implement
 
-    return {{if .ResponseType}}resp,{{end}} nil
+    return
 }
 `
 
@@ -44,7 +44,7 @@ func (self *HttpGenerator) GenLogic() (err error) {
 			continue
 		}
 
-		logicTempPath := helper.CamelToSlash(datum.Name)
+		logicTempPath := helper.SeparateCamel(datum.Name, "/")
 		if self.FileType == config.Logic_Handler_File_Type {
 			logicPath = filepath.Join(logicPath, logicTempPath)
 			self.LogicPackagePath[strings.ToLower(datum.Name)] = filepath.Join(self.ModuleName, logicPath)
@@ -54,99 +54,38 @@ func (self *HttpGenerator) GenLogic() (err error) {
 			return self.tileLogicWrite(datum, logicPath)
 		}
 
-		split := strings.Split(logicTempPath, "/")
-		logicPath = filepath.Join(logicPath, strings.Join(split[:len(split)-1], "/"))
+		// split := strings.Split(logicTempPath, "/")
+		// logicPath = filepath.Join(logicPath, strings.Join(split[:len(split)-1], "/"))
 		self.LogicPackagePath[strings.ToLower(datum.Name)] = filepath.Join(self.ModuleName, logicPath)
 		if err = os.MkdirAll(logicPath, os.ModePerm); err != nil {
 			return err
 		}
 
-		return self.combineLogicWrite(datum, logicPath, split[len(split)-1])
+		return self.combineLogicWrite(datum, logicPath)
 	}
-
-	return nil
-}
-
-func (self *HttpGenerator) combineLogicWrite(service *ServiceSpec, nowLogicPath, fileName string) (err error) {
-	c := cases.Title(language.English)
-	headerTmpl, err := template.New("logic").Parse(logicHeaderTemplate)
-	if err != nil {
-		return err
-	}
-	contentTmpl, err := template.New("logic").Parse(logicContentTemplate)
-	if err != nil {
-		return err
-	}
-
-	var builder strings.Builder
-	var hasTypes bool
-	logicName := fmt.Sprintf("%sLogic", c.String(fileName))
-	self.LogicName[strings.ToLower(service.Name)] = fmt.Sprintf("New%s()", logicName)
-	for _, route := range service.Routes {
-		if hasTypes == false {
-			hasTypes = route.ResponseType != "" || route.RequestType != ""
-		}
-	}
-
-	split := strings.Split(helper.CamelToSlash(service.Name), "/")
-	packageName := "logic"
-	if len(split) >= 2 {
-		packageName = split[len(split)-2]
-	}
-	self.LogicPackageName[strings.ToLower(service.Name)] = packageName
-	headerData := map[string]interface{}{
-		"LogicName":        logicName,
-		"PackageName":      packageName,
-		"HasTypes":         hasTypes,
-		"TypesPackagePath": self.TypesPackagePath,
-	}
-	if err = headerTmpl.Execute(&builder, headerData); err != nil {
-		return err
-	}
-	builder.WriteString("\n")
-
-	for _, route := range service.Routes {
-		self.LogicFuncName[strings.ToLower(route.Name)] = c.String(route.Name)
-		logicData := map[string]string{
-			"LogicName":        logicName,
-			"FuncName":         c.String(route.Name),
-			"RequestType":      route.RequestType,
-			"ResponseType":     route.ResponseType,
-			"TypesPackageName": self.TypesPackageName,
-		}
-		if err = contentTmpl.Execute(&builder, logicData); err != nil {
-			return err
-		}
-		builder.WriteString("\n")
-	}
-
-	filename := filepath.Join(nowLogicPath, fmt.Sprintf("%s.go", strings.ToLower(fileName)))
-	file, err := os.Create(filename)
-	defer file.Close()
-	if err != nil {
-		return err
-	}
-
-	if _, err = file.WriteString(builder.String()); err != nil {
-		return err
-	}
-	self.formatFileWithGofmt(filename)
 
 	return nil
 }
 
 func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath string) (err error) {
-	tmpl, err := template.New("logic").Parse(logicHeaderTemplate + logicContentTemplate)
+	tmpl, err := template.New("logic").Funcs(template.FuncMap{
+		"hasPrefix": strings.HasPrefix,
+	}).Parse(logicHeaderTemplate + logicContentTemplate)
 	if err != nil {
 		return err
 	}
 
-	tempPackageName := helper.CamelToSlash(service.Name)
+	tempPackageName := helper.SeparateCamel(service.Name, "/")
 	split := strings.Split(tempPackageName, "/")
-	c := cases.Title(language.English)
 	for _, route := range service.Routes {
+		filename := filepath.Join(nowLogicPath, fmt.Sprintf("%s.go", strings.ToLower(route.Name)))
+		if _, err = os.Stat(filename); err == nil {
+			console.Echo.Info(filename, " 已存在,不进行重写")
+			continue
+		}
+
 		var builder strings.Builder
-		newName := c.String(route.Name)
+		newName := helper.CapitalizeFirst(route.Name)
 		packageName := strings.ToLower(split[len(split)-1])
 		mapKey := strings.ToLower(newName)
 		self.LogicName[mapKey] = fmt.Sprintf("New%sLogic()", newName)
@@ -161,13 +100,13 @@ func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath str
 			"TypesPackagePath": self.TypesPackagePath,
 			"TypesPackageName": self.TypesPackageName,
 			"HasTypes":         route.ResponseType != "" || route.RequestType != "",
+			"PathParam":        route.RustFulKey,
 		}
 		if err = tmpl.Execute(&builder, logicData); err != nil {
 			return err
 		}
 		builder.WriteString("\n")
 
-		filename := filepath.Join(nowLogicPath, fmt.Sprintf("%s.go", strings.ToLower(route.Name)))
 		file, err := os.Create(filename)
 		defer file.Close()
 		if err != nil {
@@ -179,6 +118,109 @@ func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath str
 		}
 		self.formatFileWithGofmt(filename)
 	}
+
+	return nil
+}
+
+func (self *HttpGenerator) combineLogicWrite(service *ServiceSpec, nowLogicPath string) (err error) {
+	split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
+	filename := filepath.Join(nowLogicPath, fmt.Sprintf("%s.go", strings.ToLower(strings.Join(split, "_"))))
+
+	var hasTypes bool
+	logicName := fmt.Sprintf("%sLogic", helper.CapitalizeFirst(service.Name))
+	self.LogicName[strings.ToLower(service.Name)] = fmt.Sprintf("New%s()", logicName)
+	for _, route := range service.Routes {
+		if hasTypes == false {
+			hasTypes = route.ResponseType != "" || route.RequestType != ""
+		}
+	}
+
+	packageName := "logic"
+	self.LogicPackageName[strings.ToLower(service.Name)] = packageName
+
+	var fileContent []byte
+	if _, err = os.Stat(filename); err == nil {
+		fileContent, err = os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+	}
+
+	if fileContent == nil {
+		headerData := map[string]interface{}{
+			"LogicName":        logicName,
+			"PackageName":      packageName,
+			"HasTypes":         hasTypes,
+			"TypesPackagePath": self.TypesPackagePath,
+		}
+		headerTmpl, tmplErr := template.New("logic").Funcs(template.FuncMap{
+			"hasPrefix": strings.HasPrefix,
+		}).Parse(logicHeaderTemplate)
+		if tmplErr != nil {
+			return tmplErr
+		}
+
+		var builder strings.Builder
+		if err = headerTmpl.Execute(&builder, headerData); err != nil {
+			return err
+		}
+		// 写入文件
+		if err = os.WriteFile(filename, []byte(builder.String()), 0644); err != nil {
+			return err
+		}
+		// 重新读取文件内容供后续检测使用
+		fileContent, err = os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+	}
+
+	contentTmpl, err := template.New("logic").Funcs(template.FuncMap{
+		"hasPrefix": strings.HasPrefix,
+	}).Parse(logicContentTemplate)
+	if err != nil {
+		return err
+	}
+	for _, route := range service.Routes {
+		newName := helper.CapitalizeFirst(route.Name)
+		self.LogicFuncName[strings.ToLower(route.Name)] = newName
+		logicData := map[string]string{
+			"LogicName":        logicName,
+			"FuncName":         newName,
+			"RequestType":      route.RequestType,
+			"ResponseType":     route.ResponseType,
+			"TypesPackageName": self.TypesPackageName,
+			"PathParam":        route.RustFulKey,
+		}
+		funcSignature := fmt.Sprintf("func (self *%s) %s(", logicName, newName)
+		if strings.Contains(string(fileContent), funcSignature) {
+			console.Echo.Info(fmt.Sprintf("logic: %s 中 %s 方法已存在,不进行重写", filename, newName))
+			continue
+		}
+
+		var methodBuilder strings.Builder
+		if err = contentTmpl.Execute(&methodBuilder, logicData); err != nil {
+			return err
+		}
+
+		f, fErr := os.OpenFile(filename, os.O_WRONLY|os.O_APPEND, 0644)
+		if fErr != nil {
+			return fErr
+		}
+
+		if _, err = f.WriteString("\n" + methodBuilder.String()); err != nil {
+			f.Close()
+			return err
+		}
+		f.Close()
+
+		fileContent, err = os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+	}
+
+	self.formatFileWithGofmt(filename)
 
 	return nil
 }

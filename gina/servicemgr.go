@@ -2,11 +2,11 @@ package gina
 
 import (
 	"fmt"
+	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/helper"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 	"os"
-	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
@@ -19,9 +19,7 @@ var serviceMgrCmd = &cobra.Command{
 	Long:  `通过注册你指定的路由启动一个HTTP服务`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(serviceList) <= 0 {
-			_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] "+
-				"请务必通过实现接口 `gina.IService` 注册你要启动的服务 \n")
-			os.Exit(124)
+			console.Echo.Fatalln("❌ 错误: 请务必通过实现接口 `gina.IService` 注册你要启动的服务")
 		}
 
 		var eg errgroup.Group
@@ -29,7 +27,7 @@ var serviceMgrCmd = &cobra.Command{
 			eg.Go(func() error {
 				if err := service.OnStart(); err != nil {
 					err = fmt.Errorf("服务 %s: %v", helper.GetCallerName(service), err)
-					_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-ERROR] %v", err)
+					console.Echo.Errorf("❌  错误: %s", err)
 
 					return err
 				}
@@ -40,7 +38,7 @@ var serviceMgrCmd = &cobra.Command{
 
 		// 等待所有任务完成
 		_ = eg.Wait()
-		_, _ = fmt.Fprintf(os.Stderr, "\n[GREASYX-DEBUG] 服务已关闭 \n")
+		console.Echo.Info("ℹ️ 提示: 服务已关闭")
 		os.Exit(124)
 	},
 }
