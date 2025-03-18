@@ -13,6 +13,11 @@ import (
 
 func Casbin() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if strings.ToLower(ctx.Request.Method) == "OPTIONS" {
+			ctx.Next()
+			return
+		}
+
 		roleId := auth.GetTokenData[int64](ctx, "role_id")
 		if roleId == 0 {
 			console.Echo.Info("ℹ️ 提示: 无法使用 `Casbin` 权限校验, 请确保 `Token` 中包含了 `role_id`")
