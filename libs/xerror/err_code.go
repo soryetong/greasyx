@@ -23,6 +23,10 @@ const (
 )
 
 func GetErrorMessage(code int64, message ...string) string {
+	if len(message) > 0 {
+		return message[0]
+	}
+
 	var codeMessage string
 	codeMap := map[int64]string{
 		OK:                   "Success",
@@ -45,14 +49,10 @@ func GetErrorMessage(code int64, message ...string) string {
 		UserIsset:            "用户已存在",
 	}
 
-	if len(message) > 0 {
-		codeMessage = message[0]
+	if value, ok := codeMap[code]; ok {
+		codeMessage = value
 	} else {
-		if value, ok := codeMap[code]; ok {
-			codeMessage = value
-		} else {
-			codeMessage = "系统错误!"
-		}
+		codeMessage = "系统错误!"
 	}
 
 	return codeMessage

@@ -1,15 +1,16 @@
 package gina
 
 import (
+	"github.com/soryetong/greasyx/console"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/soryetong/greasyx/console"
 )
 
 var configFile string
 
 func init() {
 	console.RootCmd.Flags().StringVarP(&configFile, "config", "c", "", "config file")
+	console.RootCmd.CompletionOptions.DisableDefaultCmd = true
 	console.Append(greasyxCmd)
 }
 

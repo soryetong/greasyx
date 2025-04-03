@@ -3,12 +3,12 @@ package redismodule
 import (
 	"context"
 	"github.com/go-redis/redis/v8"
+	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/gina"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"strings"
 	"time"
-	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
@@ -33,7 +33,7 @@ var redisCmd = &cobra.Command{
 			viper.GetInt("Redis.Db"),
 			viper.GetBool("Redis.IsCluster"),
 		)
-		console.Echo.Infof("ℹ️ 提示: Redis模块加载成功, 你可以使用 `gina.Rdb` 进行数据操作\n")
+		console.Echo.Infof("✅ 提示: Redis模块加载成功, 你可以使用 `gina.Rdb` 进行数据操作\n")
 	},
 }
 

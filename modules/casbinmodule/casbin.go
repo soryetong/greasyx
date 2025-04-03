@@ -75,5 +75,5 @@ func initCasbin() {
 	_ = syncedEnforcer.LoadPolicy()
 
 	gina.Casbin = syncedEnforcer
-	console.Echo.Info("ℹ️ 提示: Casbin模块加载成功, 你可以使用 `gina.Casbin` 进行权限操作\n")
+	console.Echo.Info("✅ 提示: Casbin模块加载成功, 你可以使用 `gina.Casbin` 进行权限操作\n")
 }

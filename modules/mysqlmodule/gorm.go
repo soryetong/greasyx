@@ -2,6 +2,7 @@ package mysqlmodule
 
 import (
 	"fmt"
+	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/gina"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -16,7 +17,6 @@ import (
 	"path"
 	"strings"
 	"time"
-	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
@@ -64,7 +64,7 @@ func initGorm(dsn string) {
 	sqlDB.SetMaxOpenConns(viper.GetInt("MySQL.MaxConn"))
 
 	gina.Db = db
-	console.Echo.Info("ℹ️ 提示: MySQL模块加载成功, 你可以使用 `gina.Db` 进行ORM操作\n")
+	console.Echo.Info("✅ 提示: MySQL模块加载成功, 你可以使用 `gina.Db` 进行ORM操作\n")
 }
 
 // 切换默认 Logger 使用的 Writer

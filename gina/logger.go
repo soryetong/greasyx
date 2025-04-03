@@ -1,7 +1,6 @@
 package gina
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -10,11 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/soryetong/greasyx/helper"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
+
+var rotationScheduler *RotationScheduler
 
 type ILog struct {
 	*zap.Logger
@@ -28,7 +30,18 @@ func initILog() {
 	viper.SetDefault("Log.MaxBackups", 3)
 	viper.SetDefault("Log.MaxAge", 7)
 	viper.SetDefault("Log.Compress", true)
+	viper.SetDefault("Log.Logrotate", true)
+	newILog()
 
+	// 日志轮转
+	if viper.GetBool("Log.Logrotate") || viper.GetBool("Log.Recover") {
+		rotationScheduler = NewRotationScheduler(func() {
+			newILog()
+		})
+	}
+}
+
+func newILog() {
 	Log = &ILog{
 		Logger: zap.New(
 			getCore(),
@@ -163,14 +176,60 @@ func customTimeEncoder(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
 	enc.AppendString(t.Format("2006-01-02 15:04:05.000"))
 }
 
-// CustomWrite 自定义写入器
+// RotationScheduler 日志轮转调度器
+type RotationScheduler struct {
+	done       chan struct{}
+	rotateFunc func()
+	wg         sync.WaitGroup
+}
+
+// NewRotationScheduler 创建新的日志轮转调度器
+func NewRotationScheduler(rotateFunc func()) *RotationScheduler {
+	rs := &RotationScheduler{
+		done:       make(chan struct{}),
+		rotateFunc: rotateFunc,
+	}
+
+	rs.wg.Add(1)
+	helper.SafeGo(func() {
+		rs.scheduleRotation()
+	})
+
+	return rs
+}
+
+// scheduleRotation 调度日志轮转
+func (rs *RotationScheduler) scheduleRotation() {
+	defer rs.wg.Done()
+
+	for {
+		now := time.Now()
+		next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, now.Location())
+		duration := next.Sub(now)
+
+		select {
+		case <-time.After(duration):
+			if rs.rotateFunc != nil {
+				rs.rotateFunc()
+			}
+		case <-rs.done:
+			return
+		}
+	}
+}
+
+// Stop 停止调度器
+func (rs *RotationScheduler) Stop() {
+	close(rs.done)
+	rs.wg.Wait()
+}
+
 type CustomWrite struct {
-	mu       sync.Mutex
 	filepath string
 	logger   *lumberjack.Logger
 	inner    zapcore.WriteSyncer
-	buffer   *bufio.Writer
 	done     chan struct{}
+	once     sync.Once
 }
 
 // NewCustomWrite 创建自定义写入器
@@ -182,7 +241,9 @@ func NewCustomWrite(filepath string, maxSize, maxBackups, maxAge int, compress b
 	cw.initLogger(filepath, maxSize, maxBackups, maxAge, compress)
 
 	// 启动文件状态监控
-	go cw.monitorFile()
+	helper.SafeGo(func() {
+		cw.monitorFile()
+	})
 
 	return cw
 }
@@ -196,24 +257,13 @@ func (cw *CustomWrite) initLogger(filepath string, maxSize, maxBackups, maxAge i
 		MaxAge:     maxAge,
 		Compress:   compress,
 	}
+
 	cw.inner = zapcore.AddSync(cw.logger)
-	cw.buffer = bufio.NewWriterSize(cw.inner, 4096)
 }
 
 // Write 写入日志
 func (cw *CustomWrite) Write(p []byte) (n int, err error) {
-	cw.mu.Lock()
-	defer cw.mu.Unlock()
-
-	// 写入缓冲区
-	n, err = cw.buffer.Write(p)
-	if err != nil {
-		cw.recreateLogger()
-		return n, err
-	}
-
-	// 刷新缓冲区
-	err = cw.flushBuffer()
+	n, err = cw.inner.Write(p)
 	if err != nil {
 		cw.recreateLogger()
 	}
@@ -222,50 +272,37 @@ func (cw *CustomWrite) Write(p []byte) (n int, err error) {
 
 // recreateLogger 重新创建日志文件和写入器
 func (cw *CustomWrite) recreateLogger() {
-	cw.logger.Close()
-	cw.initLogger(cw.filepath, cw.logger.MaxSize, cw.logger.MaxBackups, cw.logger.MaxAge, cw.logger.Compress)
-}
-
-// flushBuffer 刷新缓冲区
-func (cw *CustomWrite) flushBuffer() error {
-	return cw.buffer.Flush()
+	cw.once.Do(func() {
+		cw.logger.Close()
+		cw.initLogger(cw.filepath, cw.logger.MaxSize, cw.logger.MaxBackups, cw.logger.MaxAge, cw.logger.Compress)
+	})
 }
 
 // monitorFile 异步监控日志文件状态
 func (cw *CustomWrite) monitorFile() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			cw.checkFile()
+			if _, err := os.Stat(cw.filepath); os.IsNotExist(err) {
+				cw.recreateLogger()
+			}
 		case <-cw.done:
 			return
 		}
 	}
 }
 
-// checkFile 检查日志文件是否存在
-func (cw *CustomWrite) checkFile() {
-	cw.mu.Lock()
-	defer cw.mu.Unlock()
-
-	if _, err := os.Stat(cw.filepath); os.IsNotExist(err) {
-		cw.recreateLogger()
-	}
-}
-
+// Sync 刷新日志到文件
 func (cw *CustomWrite) Sync() error {
-	return nil
+	return cw.inner.Sync()
 }
 
 // Close 关闭写入器
 func (cw *CustomWrite) Close() error {
 	close(cw.done)
-	cw.mu.Lock()
-	defer cw.mu.Unlock()
-	err := cw.flushBuffer()
-	cw.logger.Close()
-	return err
+
+	return cw.Sync()
 }

@@ -2,11 +2,12 @@ package gina
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/helper"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
-	"os"
 )
 
 func init() {
@@ -18,6 +19,7 @@ var serviceMgrCmd = &cobra.Command{
 	Short: "Web项目的服务启动",
 	Long:  `通过注册你指定的路由启动一个HTTP服务`,
 	Run: func(cmd *cobra.Command, args []string) {
+		defer closeServiceMgr()
 		if len(serviceList) <= 0 {
 			console.Echo.Fatalln("❌ 错误: 请务必通过实现接口 `gina.IService` 注册你要启动的服务")
 		}
@@ -38,9 +40,16 @@ var serviceMgrCmd = &cobra.Command{
 
 		// 等待所有任务完成
 		_ = eg.Wait()
-		console.Echo.Info("ℹ️ 提示: 服务已关闭")
 		os.Exit(124)
 	},
+}
+
+func closeServiceMgr() {
+	_ = console.Echo.Sync()
+	_ = Log.Sync()
+	if rotationScheduler != nil {
+		rotationScheduler.Stop()
+	}
 }
 
 var serviceList []IService

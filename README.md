@@ -122,6 +122,7 @@ func main() {
   },
   "MySQL": {
     "Dsn": "root:123456@tcp(127.0.0.1:3307)/greasyx-admin?charset=utf8&parseTime=True&loc=Local&timeout=5s",
+    "remark": "以下配置是可选的，如果没有配置，则使用默认配置",
     "LogLevel": 3,
     "EnableLogWriter": false,
     "MaxIdleConn": 10,
@@ -138,7 +139,9 @@ func main() {
     "Url": "mongodb://admin:123123@192.168.0.13:27017/?minPoolSize=5&maxPoolSize=35&maxIdleTimeMS=30000"
   },
   "Log": {
+    "remark": "日志的所有配置都是可选的，都有默认配置，可以先看一下下面关于配置的解释",
     "Path": "./logs/",
+    "Logrotate": false,
     "Mode": "both",
     "Recover": true,
     "MaxSize": 1,
@@ -156,6 +159,7 @@ func main() {
 
 
 - `MySQL`：表示MySQL配置，包括DSN(必要的)、日志级别、最大空闲连接数、最大连接数、慢查询阈值等
+    
   - `EnableLogWriter: true` 会使用zap日志记录MySQL日志
 
 
@@ -166,7 +170,14 @@ func main() {
 
 
 - `Log`：表示日志配置(非必要,都有默认值)，包括日志路径、模式、是否开启Recover、最大文件大小、最大备份数、最大保存天数、是否压缩等
+
+  - `Logrotate` 是否开启日志轮转，默认是开启的。由于日志是按照日期分目录的，这个值为 `true` 时，会在每天晚上 24 点按照日期重新创建日志目录
+
+    - 如果你使用了 `Linux` 自带的 `logrotate` ，那么建议 `Logrotate` 设置为 `false`
+
   - `Mode` 支持: `file`写入文件，`both`写入文件和控制台，`console`写入控制台，`close`不写入任何地方
+  
+  - `Recover` 在你项目启动后删除已经生成的日志文件，将不会自动创建文件并继续写入，如果这个设置为 `true` 则会检查并重新创建文件，但有一定的性能影响
 
 
 - `Casbin`：表示Casbin配置，包括模式路径等, 没有该路径时会使用 `greasyx` 提供的默认配置

@@ -61,12 +61,12 @@ func (self *HttpGenerator) parseFieldDeclaration(declaration string) (*FieldSpec
 func (self *HttpGenerator) PRoutesService(content string) (err error) {
 	var services []*ServiceSpec
 	// serviceRegex := regexp.MustCompile(`service\s+(\w+)\s*{([^}]*)}`)
-	serviceRegex := regexp.MustCompile(`service\s+(\w+)(?:\s+Use\s+([\w,]+))?\s*{([^}]*)}`)
+	serviceRegex := regexp.MustCompile(`service\s+(\w+)(?:\s+Group\s+([\w,]+))?\s*{([^}]*)}`)
 	serviceMatches := serviceRegex.FindAllStringSubmatch(content, -1)
 	for _, serviceMatch := range serviceMatches {
 		var service ServiceSpec
 		service.Name = serviceMatch[1]
-		service.Middleware = serviceMatch[2]
+		service.Group = serviceMatch[2]
 		routesBlock := serviceMatch[3]
 
 		routeRegex := regexp.MustCompile(`(\w+)\s+([\w/:]+)(?::(\w+))?\s*(?:\(([\[\]\w]+)\))?\s*returns\s*(?:\(([\[\]\w]+)\))?`)

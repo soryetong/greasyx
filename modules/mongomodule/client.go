@@ -2,12 +2,12 @@ package mongomodule
 
 import (
 	"context"
+	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/gina"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"github.com/soryetong/greasyx/console"
 )
 
 func init() {
@@ -41,5 +41,5 @@ func initClient(url string) {
 	}
 
 	gina.Mdb = client
-	console.Echo.Info("ℹ️ 提示: Mongo模块加载成功, 你可以使用 `gina.Mdb` 进行数据操作\n")
+	console.Echo.Info("✅ 提示: Mongo模块加载成功, 你可以使用 `gina.Mdb` 进行数据操作\n")
 }

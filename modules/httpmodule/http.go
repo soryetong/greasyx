@@ -50,14 +50,14 @@ func (self *IHttp) OnStop(data *CallbackMap) {
 func (self *IHttp) Start() error {
 	self.OnInit()
 	go func() {
-		if err := self.srv.ListenAndServe(); err != nil {
+		if err := self.srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			console.Echo.Errorf("❌  错误: 服务启动异常 %s", err)
 			self.exit <- err
 		}
 	}()
 
 	self.tls = false
-	console.Echo.Infof("ℹ️ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
+	console.Echo.Infof("✅ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
 
 	return self.running()
 }
@@ -65,20 +65,20 @@ func (self *IHttp) Start() error {
 func (self *IHttp) StartTLS(certFile, keyFile string) error {
 	self.OnInit()
 	go func() {
-		if err := self.srv.ListenAndServeTLS(certFile, keyFile); err != nil {
+		if err := self.srv.ListenAndServeTLS(certFile, keyFile); err != nil && err != http.ErrServerClosed {
 			console.Echo.Errorf("❌  错误: 服务启动异常 %s", err)
 			self.exit <- err
 		}
 	}()
 
 	self.tls = true
-	console.Echo.Infof("ℹ️ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
+	console.Echo.Infof("✅ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
 
 	return self.running()
 }
 
 func (self *IHttp) running() error {
-	quit := make(chan os.Signal)
+	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	for {
@@ -87,13 +87,17 @@ func (self *IHttp) running() error {
 			self.stopCallback.Foreach()
 			return nil
 		case <-quit:
+			self.stopCallback.Foreach()
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*self.timeout)
 			defer cancel()
 			if err := self.srv.Shutdown(ctx); err != nil {
-				// console.Echo.Warnf("⚠️ 警告: 服务停机失败: %s\n", err)
+				console.Echo.Warnf("⚠️ 警告: 服务停机失败: %s\n", err)
 
 				return err
 			}
+
+			console.Echo.Infof("✅ 提示: 服务 %s 已成功关闭\n", self.name)
+			return nil
 		}
 	}
 }
