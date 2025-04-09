@@ -9,6 +9,7 @@
 - 它只是我为了快速构建自己的项目而创建的，让我不必在每新建一个新项目都复制这些代码
 - 它只是把日常工作中常用的工具和第三方包进行了整合，没有什么高深的技术，也不会有任何的性能影响
 - 在项目中, 把常用的MySQL、HTTP、Redis、MongoDB等以模块化的方式按需加载
+- 目前 main 分支一直在更新，后续功能完善后，将会提供精简版本的
 
 ## 当前go版本
 
@@ -68,11 +69,47 @@ type TestResp {
 
 # 必须以 service 打头，会生成对应的接口、方法
 # SystemTest 可以理解成一个模块
-# Use Record 表示这个模块需要使用到的中间件, 多个中间件用英文逗号隔开
-service SystemTest Use Record {
+# Group Auth 表示这个模块属于哪个 Group
+service SystemTest Group Auth {
     # get 表示请求类型，支持get、post、put、delete, returns前表示请求参数, returns后表示返回参数
     get test1 (TestReq) returns (TestResp)
     post test2 returns
+}
+```
+
+**Group 是指这个模块所属的组，目前支持 `Public`、`Auth`、`Token`**
+
+> 它会将路由分成不同的组，从而让不同的组使用不同的中间件
+    
+    `Public`：不使用任何中间件
+    
+    `Auth`：使用 `Casbin` 权限校验和 `Jwt` token中间件，适用于管理后台
+    
+    `Token`：使用 `Jwt` token中间件
+
+生成的路由代码如下：
+
+```go
+publicGroup := r.Group("/api/v1")
+{
+    // 健康监测
+    publicGroup.GET("/health", func(c *gin.Context) {
+        c.JSON(200, "ok")
+    })
+
+    // your_router
+}
+
+privateAuthGroup := r.Group("/api/v1")
+privateAuthGroup.Use(middleware.Casbin()).Use(middleware.Jwt())
+{ 
+    // your_router
+}
+
+privateTokenGroup := r.Group("/api/v1")
+privateTokenGroup.Use(middleware.Jwt())
+{
+    // your_router
 }
 ```
 
@@ -83,6 +120,9 @@ service SystemTest Use Record {
 ```bash
 # src表示api文件路径，output表示生成的代码路径
 go run main.go autoc src=./api_desc output=./internal
+
+# 或者直接运行，按照指令输入
+go run main.go autoc
 ```
 6. 加载Server和需要用到模块
 
@@ -120,15 +160,19 @@ func main() {
     "Addr": ":18002",
     "Timeout": 1
   },
-  "MySQL": {
-    "Dsn": "root:123456@tcp(127.0.0.1:3307)/greasyx-admin?charset=utf8&parseTime=True&loc=Local&timeout=5s",
-    "remark": "以下配置是可选的，如果没有配置，则使用默认配置",
-    "LogLevel": 3,
-    "EnableLogWriter": false,
-    "MaxIdleConn": 10,
-    "MaxConn": 200,
-    "SlowThreshold": 2
-  },
+  "Db": [
+    {
+      "Dsn": "root:123456@tcp(127.0.0.1:3307)/greasyx-admin?charset=utf8&parseTime=True&loc=Local&timeout=5s",
+      "Driver": "mysql",
+      "UseOrm": true,
+      "remark": "以下配置是可选的，而且有些Driver是不支持有些配置的，如果没有配置，则使用默认配置",
+      "LogLevel": 3,
+      "EnableLogWriter": false,
+      "MaxIdleConn": 10,
+      "MaxConn": 200,
+      "SlowThreshold": 2
+    }
+  ],
   "Redis": {
     "Addr": "127.0.0.1:6379",
     "Password": "",
@@ -150,7 +194,9 @@ func main() {
     "Compress": true
   },
   "Casbin": {
-    "ModePath": ""
+    "ModePath": "",
+    "remark": "当你使用了多个数据库时，需要指定一个数据库名，只有一个时，可以忽略这个配置",
+    "DbName": "mysql"
   }
 }
 ```
@@ -158,9 +204,17 @@ func main() {
 - `App`：表示项目配置，包括项目名、环境、端口、超时时间等
 
 
-- `MySQL`：表示MySQL配置，包括DSN(必要的)、日志级别、最大空闲连接数、最大连接数、慢查询阈值等
+- `Db`：表示数据库配置，包括DSN(必要的)、日志级别、最大空闲连接数、最大连接数、慢查询阈值等
     
-  - `EnableLogWriter: true` 会使用zap日志记录MySQL日志
+  - `Driver`：数据库驱动，目前支持 `MySQL`、`PostgresSQL`、`SQLite`、`SQLServer`、`Oracle`
+
+    - 这里也可以支持多个数据库，比如 MySQL 有一主多从，那么你需要添加多个配置，并把 `Driver` 的值改为 "mysql_master", "mysql_slave1", "mysql_slave2"
+        
+    - 但是必须以驱动名作为前缀，以下划线分割
+
+  - `UseOrm`：是否使用ORM，`true` 则使用 `gorm`，`false` 则使用 `sqlx`
+  
+  - `EnableLogWriter`：是否使用zap日志记录数据库日志
 
 
 - `Redis`：表示Redis配置，包括地址、密码、数据库、是否集群等
@@ -177,10 +231,12 @@ func main() {
 
   - `Mode` 支持: `file`写入文件，`both`写入文件和控制台，`console`写入控制台，`close`不写入任何地方
   
-  - `Recover` 在你项目启动后删除已经生成的日志文件，将不会自动创建文件并继续写入，如果这个设置为 `true` 则会检查并重新创建文件，但有一定的性能影响
+  - `Recover` zap日志库在你项目启动后删除已经生成的日志文件，将不会自动创建文件并继续写入，但如果这个设置为 `true` 则会检查并重新创建文件，但有一定的性能影响
 
 
 - `Casbin`：表示Casbin配置，包括模式路径等, 没有该路径时会使用 `greasyx` 提供的默认配置
+
+    - 目前只支持 MySQL 
 
 ## 提供的模块
 
@@ -234,11 +290,23 @@ func (self *AdminServer) exitCallback() *httpmodule.CallbackMap {
 
 > 以下模块必须在 `main.go` 中 **按需匿名导入**
 
-- MySQL
+- Db，需要先阅读一下[配置文件](#配置文件)
 
-      _ "github.com/soryetong/greasyx/modules/mysqlmodule"
+      _ "github.com/soryetong/greasyx/modules/dbmodule"
 
-      这样就可以使用 `gina.Db` 获取到Gorm实例
+      当你这个匿名导入后，`greasyx` 会告诉你该怎么样使用 db，你将在控制台看到以下输出：
+
+        INFO	✅ 提示: `mysql_master` 模块加载成功, 你可以使用 `gina.GetSqlx(mysql_master)` 进行SQL操作
+
+        INFO	✅ 提示: `mysql_slave` 模块加载成功, 你可以使用 `gina.GetSqlx(mysql_slave)` 进行SQL操作
+
+        INFO	✅ 提示: `mysql` 模块加载成功, 你可以使用 `gina.GMySQL()` 进行ORM操作
+
+
+注意⚠️⚠️⚠️
+
+**在业务逻辑中，你必须清楚的知道你该以哪种方式操作数据库**
+
 
 - Redis
 
@@ -257,3 +325,16 @@ func (self *AdminServer) exitCallback() *httpmodule.CallbackMap {
       _ "github.com/soryetong/greasyx/modules/casbinmodule"
 
       这样就可以搭配内置的`Casbin`中间件来进行权限校验
+
+
+## QA
+
+1. 如何使用日志链路追踪？
+
+        如果你使用的是 `autoc` 自动生成代码，那么路由中已经使用了 `r.Use(middleware.Begin())` 中间件
+
+        如果你没有使用 `autoc` 自动生成代码，那么你需要在路由中手动加入 `r.Use(middleware.Begin())` 中间件
+
+        在业务逻辑中就可以通过 `gina.Log.WithCtx(ctx)`，实现链路追踪
+
+        这个方案需要确保每个需要记录日志的方法的第一个参数都是 `ctx context.Context`

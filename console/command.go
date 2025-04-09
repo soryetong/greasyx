@@ -37,7 +37,9 @@ var RootCmd = &cobra.Command{
 		}
 
 		// Casbin 有依赖项,  所以需要放在后面执行
-		mapCommand["Casbin"](cmd, args)
+		if mapCommand["Casbin"] != nil {
+			mapCommand["Casbin"](cmd, args)
+		}
 
 		// 确保 Start 命令最后执行
 		mapCommand["Start"](cmd, args)

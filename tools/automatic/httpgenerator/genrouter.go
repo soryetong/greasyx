@@ -139,7 +139,7 @@ func InitRouter() *gin.Engine {
 	fs := "/uploads"
 	r.StaticFS(fs, http.Dir("./"+fs))
 
-	r.Use(middleware.Cross()){{if .NeedRequestLog}}.Use(middleware.RequestLog()){{end}}
+	r.Use(middleware.Begin()).Use(middleware.Cross()){{if .NeedRequestLog}}.Use(middleware.RequestLog()){{end}}
 	publicGroup := r.Group("{{ .RouterPrefix}}")
 	{
 		// 健康监测
