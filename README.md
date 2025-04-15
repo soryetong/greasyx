@@ -2,6 +2,8 @@
 
 <p align="center"> 这是一个为了快速构建一个go项目而生的Go+Gin的Web项目脚手架</p>
 
+<p align="center"> 它是站在巨人的肩膀上而实现的，使用了大量优质的第三方包，介意请慎用</p>
+
 <p align="center">千人千面，它可能不适合你，但完全满足我的需求，欢迎技术讨论，但不喜勿喷</p>
 
 ## 介绍
@@ -156,9 +158,11 @@ func main() {
 {
   "App": {
     "Name": "app",
-    "Env": "local",
+    "Env": "test",
     "Addr": ":18002",
-    "Timeout": 1
+    "Timeout": 1,
+    "remark": "RouterPrefix表示你的路由前缀，默认为/api/v1，你可以自定义你的路由前缀",
+    "RouterPrefix": "mgr/v1"
   },
   "Db": [
     {
@@ -203,6 +207,10 @@ func main() {
 
 - `App`：表示项目配置，包括项目名、环境、端口、超时时间等
 
+  - `Env`：表示环境，与 `gin` 的 `EnvGinMode` 保持一致，可选项有 `debug`、`test`、`release`
+  
+  - `RouterPrefix`：路由前缀，非必填，但当你使用 **`Casbin`、`Limiter`这两个中间件时，将可以减少代码量**
+  
 
 - `Db`：表示数据库配置，包括DSN(必要的)、日志级别、最大空闲连接数、最大连接数、慢查询阈值等
     
@@ -338,3 +346,35 @@ func (self *AdminServer) exitCallback() *httpmodule.CallbackMap {
         在业务逻辑中就可以通过 `gina.Log.WithCtx(ctx)`，实现链路追踪
 
         这个方案需要确保每个需要记录日志的方法的第一个参数都是 `ctx context.Context`
+
+2. 限流器如何使用？
+
+        限流器是一个中间件，在路由中加入 `r.Use(xmiddleware.Limiter())` 即可，但需要定义规则
+      
+        它基于 `golang.org/x/time/rate` 实现，目前支持通用限流规则和路由限流规则
+
+        限流规则目前支持文件加载，`json` 和 `yaml` 文件都可以，内容如下：（二选一）
+
+      ```json
+      {
+         "mode": "uri", // 路由限流规则
+         "rules": [
+            { "Route": "health", "KeyType": "ip", "Rate": 1, "Burst": 5 }
+         ]
+      }
+      ```
+      ```yaml
+      {
+        "mode": "comm", # 通用限流规则
+        "rules": [
+          { "Route": "*", "KeyType": "ip", "Rate": 1, "Burst": 5 }
+        ]
+      }
+      ```
+   
+      然后再路由文件中加入以下代码即可
+
+      ```go
+      limiterStore := xapp.NewLimiterStoreFromFile("./limiter.json")
+	  r.Use(xmiddleware.Limiter(limiterStore))
+      ```

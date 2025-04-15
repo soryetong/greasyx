@@ -1,6 +1,8 @@
 package gina
 
 import (
+	"strings"
+
 	"github.com/soryetong/greasyx/console"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,11 +27,21 @@ var greasyxCmd = &cobra.Command{
 }
 
 func initConfig() {
+	// 加载配置
 	if configFile == "" {
 		configFile = "./config.json"
 	}
 	viper.SetConfigFile(configFile)
 	if err := viper.ReadInConfig(); err != nil {
 		console.Echo.Fatalf("❌ 错误: 读取配置文件错误: %s", err)
+	}
+
+	// 设置默认值
+	viper.SetDefault("App.Env", "test")
+	routerPrefix := viper.GetString("App.RouterPrefix")
+	if routerPrefix == "" {
+		viper.SetDefault("App.RouterPrefix", "/api/v1")
+	} else {
+		viper.Set("App.RouterPrefix", "/"+strings.Trim(routerPrefix, "/"))
 	}
 }

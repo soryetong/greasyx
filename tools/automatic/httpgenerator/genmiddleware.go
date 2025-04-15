@@ -12,7 +12,7 @@ import (
 )
 
 const middlewareContentTemplate = `
-package middleware
+package xmiddleware
 
 import (
 	"github.com/gin-gonic/gin"
@@ -27,7 +27,7 @@ func {{ .Name }}() gin.HandlerFunc {
 `
 
 func (self *HttpGenerator) GenMiddleware(middlewarePath, name string) (err error) {
-	middlewareTmpl, err := template.New("middleware").Parse(middlewareContentTemplate)
+	middlewareTmpl, err := template.New("xmiddleware").Parse(middlewareContentTemplate)
 	if err != nil {
 		return err
 	}

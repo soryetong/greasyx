@@ -13,7 +13,6 @@ import (
 func DirIsEmpty(dirPath string) (bool, error) {
 	dirEntries, err := os.ReadDir(dirPath)
 	if err != nil {
-		fmt.Println("DirIsEmpty-err:", err)
 		return false, err
 	}
 

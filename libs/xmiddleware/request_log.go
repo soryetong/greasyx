@@ -1,4 +1,4 @@
-package middleware
+package xmiddleware
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/soryetong/greasyx/gina"
 	"github.com/soryetong/greasyx/helper"
-	"github.com/soryetong/greasyx/libs/auth"
+	"github.com/soryetong/greasyx/libs/xauth"
 	"go.uber.org/zap"
 )
 
@@ -62,8 +62,8 @@ func RequestLog() gin.HandlerFunc {
 			Method:   ctx.Request.Method,
 			Path:     path,
 			Request:  string(request),
-			UserId:   auth.GetTokenData[int64](ctx, "id"),
-			Username: auth.GetTokenData[string](ctx, "username"),
+			UserId:   xauth.GetTokenData[int64](ctx, "id"),
+			Username: xauth.GetTokenData[string](ctx, "username"),
 			Platform: helper.GetPlatform(userAgent) + " " + helper.GetBrowser(userAgent),
 		}
 

@@ -130,16 +130,19 @@ const enterGoTemplate = `package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/soryetong/greasyx/libs/middleware"
+	"github.com/soryetong/greasyx/libs/xmiddleware"
+	"github.com/spf13/viper"
 	"net/http"
 )
 
 func InitRouter() *gin.Engine {
+	setMode()
+
 	r := gin.Default()
 	fs := "/uploads"
 	r.StaticFS(fs, http.Dir("./"+fs))
 
-	r.Use(middleware.Begin()).Use(middleware.Cross()){{if .NeedRequestLog}}.Use(middleware.RequestLog()){{end}}
+	r.Use(xmiddleware.Begin()).Use(xmiddleware.Cross()){{if .NeedRequestLog}}.Use(xmiddleware.RequestLog()){{end}}
 	publicGroup := r.Group("{{ .RouterPrefix}}")
 	{
 		// 健康监测
@@ -152,19 +155,30 @@ func InitRouter() *gin.Engine {
 
 	{{ if eq .GroupName "Auth" }}
 	privateAuthGroup := r.Group("{{ .RouterPrefix}}")
-	privateAuthGroup.Use(middleware.Casbin()).Use(middleware.Jwt())
+	privateAuthGroup.Use(xmiddleware.Casbin()).Use(xmiddleware.Jwt())
 	{
 		{{.InitPrivateAuthFunctions}}(privateAuthGroup)
 	}{{ end }}
 
 	{{ if eq .GroupName "Token" }}
 	privateTokenGroup := r.Group("{{ .RouterPrefix}}")
-	privateTokenGroup.Use(middleware.Jwt())
+	privateTokenGroup.Use(xmiddleware.Jwt())
 	{
 		{{.InitPrivateTokenFunctions}}(privateTokenGroup)
 	}{{ end }}
 
 	return r
+}
+
+func setMode() {
+	switch viper.GetString("App.Env") {
+	case gin.DebugMode:
+		gin.SetMode(gin.DebugMode)
+	case gin.ReleaseMode:
+		gin.SetMode(gin.ReleaseMode)
+	default:
+		gin.SetMode(gin.TestMode)
+	}
 }
 `
 
@@ -267,9 +281,9 @@ func (self *HttpGenerator) updateEnterGo(nowRouterPath, newRouter string) (err e
 		if returnIndex != -1 {
 			newContent = append(newContent[:returnIndex], fmt.Sprintf("\t%sGroup := r.Group(\"%s\")\n", groupName, self.RouterPrefix))
 			if nowGroup == config.Group_Auth {
-				newContent = append(newContent, "\t"+groupName+"Group.Use(middleware.Casbin()).Use(middleware.Jwt())")
+				newContent = append(newContent, "\t"+groupName+"Group.Use(xmiddleware.Casbin()).Use(xmiddleware.Jwt())")
 			} else if nowGroup == config.Group_Token {
-				newContent = append(newContent, "\t"+groupName+"Group.Use(middleware.Jwt())")
+				newContent = append(newContent, "\t"+groupName+"Group.Use(xmiddleware.Jwt())")
 			}
 			newContent = append(newContent, "\t{")
 			newContent = append(newContent, "\t\t"+newRouter+"("+groupName+"Group)")

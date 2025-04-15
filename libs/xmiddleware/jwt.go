@@ -1,11 +1,11 @@
-package middleware
+package xmiddleware
 
 import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/soryetong/greasyx/gina"
-	"github.com/soryetong/greasyx/libs/auth"
+	"github.com/soryetong/greasyx/libs/xauth"
 	"github.com/soryetong/greasyx/libs/xerror"
 )
 
@@ -18,7 +18,7 @@ func Jwt() gin.HandlerFunc {
 			return
 		}
 
-		claims, err := auth.ParseJwtToken(tokenString[7:])
+		claims, err := xauth.ParseJwtToken(tokenString[7:])
 		if err != nil {
 			gina.Fail(ctx, xerror.NeedLogin)
 			ctx.Abort()

@@ -93,6 +93,7 @@ func getCore() zapcore.Core {
 	infoWrite := getLogWriter(path, mode, doRecover, zapcore.InfoLevel)
 	warnWrite := getLogWriter(path, mode, doRecover, zapcore.WarnLevel)
 	errorWrite := getLogWriter(path, mode, doRecover, zapcore.ErrorLevel)
+	fatalWrite := getLogWriter(path, mode, doRecover, zapcore.FatalLevel)
 	debugLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
 		return level == zapcore.DebugLevel
 	})
@@ -105,11 +106,15 @@ func getCore() zapcore.Core {
 	errorLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
 		return level == zapcore.ErrorLevel
 	})
+	fatalLevel := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		return level == zapcore.FatalLevel
+	})
 	return zapcore.NewTee(
 		zapcore.NewCore(encoder, zapcore.AddSync(debugWrite), debugLevel),
 		zapcore.NewCore(encoder, zapcore.AddSync(infoWrite), infoLevel),
 		zapcore.NewCore(encoder, zapcore.AddSync(warnWrite), warnLevel),
 		zapcore.NewCore(encoder, zapcore.AddSync(errorWrite), errorLevel),
+		zapcore.NewCore(encoder, zapcore.AddSync(fatalWrite), fatalLevel),
 	)
 }
 

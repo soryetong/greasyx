@@ -50,11 +50,6 @@ var casbinCmd = &cobra.Command{
 	Short: "Init Casbin",
 	Long:  `加载Casbin模块之后，可以通过 gina.Casbin 进行权限校验`,
 	Run: func(cmd *cobra.Command, args []string) {
-		dbName := viper.GetString("Casbin.DbName")
-		if gina.GMySQL() == nil || dbName == "" {
-			console.Echo.Fatalf("❌ 错误: 你正在加载Casbin模块，但是该模块目前只支持 `MySQL`，请先启用 `gina.GMySQL()`\n")
-		}
-
 		initCasbin()
 	},
 }
@@ -70,6 +65,9 @@ func initCasbin() {
 	db := gina.GMySQL()
 	if db == nil {
 		db = gina.GetGorm(viper.GetString("Casbin.DbName"))
+	}
+	if db == nil {
+		console.Echo.Fatalf("❌ 错误: 你正在加载Casbin模块，但是该模块目前只支持 `MySQL`，请先启用 `gina.GMySQL()`\n")
 	}
 	a, _ := gormadapter.NewAdapterByDB(db)
 	syncedEnforcer, err := casbin.NewSyncedEnforcer(modePath, a)
