@@ -347,52 +347,52 @@ func (self *AdminServer) exitCallback() *httpmodule.CallbackMap {
 
         这个方案需要确保每个需要记录日志的方法的第一个参数都是 `ctx context.Context`
 
-   2. 限流器如何使用？
+2. 限流器如何使用？
 
-           限流器是一个中间件，在路由中加入 `r.Use(xmiddleware.Limiter())` 即可，但需要定义规则
+        限流器是一个中间件，在路由中加入 `r.Use(xmiddleware.Limiter())` 即可，但需要定义规则
       
-           它基于 `golang.org/x/time/rate` 实现，目前支持通用限流规则和路由限流规则
+        它基于 `golang.org/x/time/rate` 实现，目前支持通用限流规则和路由限流规则
 
-           限流规则目前支持文件加载，`json` 和 `yaml` 文件都可以，内容如下：（二选一）
+        限流规则目前支持文件加载，`json` 和 `yaml` 文件都可以，内容如下：（二选一）
 
-         ```json
-         {
-            "mode": "uri", 
-            "rules": [
-               { "Route": "health", "KeyType": "ip", "Rate": 1, "Burst": 5 }
-            ]
-         }
-         ```
-         ```yaml
-         {
-           "mode": "comm", # comm表示通用限流规则，uri则表示路由限流规则
-           "rules": [
-             { "Route": "*", "KeyType": "ip", "Rate": 1, "Burst": 5 }
-           ]
-         }
-         ```
+      ```json
+      {
+         "mode": "uri", 
+         "rules": [
+            { "Route": "health", "KeyType": "ip", "Rate": 1, "Burst": 5 }
+         ]
+      }
+      ```
+      ```yaml
+      {
+        "mode": "comm", # comm表示通用限流规则，uri则表示路由限流规则
+        "rules": [
+          { "Route": "*", "KeyType": "ip", "Rate": 1, "Burst": 5 }
+        ]
+      }
+      ```
    
-         然后再路由文件中加入以下代码即可
+      然后再路由文件中加入以下代码即可
 
-         ```go
-         limiterStore := xapp.NewLimiterStoreFromFile("./limiter.json")
-         r.Use(xmiddleware.Limiter(limiterStore))
-         ```
+      ```go
+      limiterStore := xapp.NewLimiterStoreFromFile("./limiter.json")
+      r.Use(xmiddleware.Limiter(limiterStore))
+      ```
    
-      3. Swagger 文档如何使用？
+3. Swagger 文档如何使用？
 
-              前提是你使用的 `autoc` 自动生成代码，才会自动生成 `Swagger` 文档
+        前提是你使用的 `autoc` 自动生成代码，才会自动生成 `Swagger` 文档
 
-              目前每个 controller 中都提供了 `Swagger` 的注释，而且生成了对应的 `Swagger` yaml 文件
+        目前每个 controller 中都提供了 `Swagger` 的注释，而且生成了对应的 `Swagger` yaml 文件
 
-              你有两种方式使用：
+        你有两种方式使用：
             
-                  1. 使用 `gin-swagger` 配合 `Swagger UI` 实现在线预览
+            1. 使用 `gin-swagger` 配合 `Swagger UI` 实现在线预览
 
-                  2. 把 `Swagger` yaml 文件导入到 `apifox`、`postman` 等工具中
+            2. 把 `Swagger` yaml 文件导入到 `apifox`、`postman` 等工具中
 
-              为什么 `greasyx` 没有采用方案 1 实现在线预览？
+        为什么 `greasyx` 没有采用方案 1 实现在线预览？
             
-                  对于每个项目来说，接口文档都是不可外传的，而且我使用的是自建 yapi 文档平台，所以没有采用方案1
+            对于每个项目来说，接口文档都是不可外传的，而且我使用的是自建 yapi 文档平台，所以没有采用方案1
 
-                  而且 `gin-swagger` 是一个非常优秀的库，基本的注释已经生成好了，如果你有需要，可以自行实现
+            而且 `gin-swagger` 是一个非常优秀的库，基本的注释已经生成好了，如果你有需要，可以自行实现
