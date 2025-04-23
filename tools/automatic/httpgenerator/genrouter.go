@@ -55,7 +55,8 @@ type RouteMiddleware struct {
 	Name      string
 }
 
-func (self *HttpGenerator) GenRouter(groupName string) (err error) {
+func (self *HttpGenerator) GenRouter() (err error) {
+	groupName := self.GroupName
 	nowRouterPath := filepath.Join(self.Output, "router")
 	self.RouterPath = filepath.Join(self.ModuleName, nowRouterPath)
 	if err = os.MkdirAll(nowRouterPath, os.ModePerm); err != nil {

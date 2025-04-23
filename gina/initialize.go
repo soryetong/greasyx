@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/modules/cachemodule"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -21,8 +22,12 @@ var greasyxCmd = &cobra.Command{
 	Short: "Greasyx框架初始化",
 	Long:  `Greasyx框架初始化`,
 	Run: func(cmd *cobra.Command, args []string) {
-		initConfig() // 初始化配置文件
-		initILog()   // 初始化日志
+		// 初始化配置文件
+		initConfig()
+		// 初始化日志
+		initILog()
+		// 初始化缓存模块
+		Cache = cachemodule.New(10000, 64, 0)
 	},
 }
 

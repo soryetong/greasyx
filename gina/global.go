@@ -8,6 +8,7 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/jmoiron/sqlx"
 	"github.com/soryetong/greasyx/console"
+	"github.com/soryetong/greasyx/modules/cachemodule"
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 
@@ -21,6 +22,7 @@ var (
 	Mdb    *mongo.Client
 	Log    *ILog
 	Casbin *casbin.SyncedEnforcer
+	Cache  *cachemodule.Cache
 )
 
 func Run() {

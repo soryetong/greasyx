@@ -65,7 +65,7 @@ func (self *HttpGenerator) GenServer() (err error) {
 	}
 	filename := filepath.Join(path, fmt.Sprintf("%s.go", serverName))
 	if _, err = os.Stat(filename); err == nil {
-		console.Echo.Info(fmt.Sprintf("服务文件: %s 已存在,不进行重写", filename))
+		console.Echo.Info(fmt.Sprintf("服务文件: %s 已存在，不进行重写", filename))
 		return nil
 	}
 

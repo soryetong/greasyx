@@ -26,6 +26,17 @@ import (
 
 const handlerContentTemplate = `
 
+// @Summary {{ .Summary }}
+// @Description {{ .Summary }}
+// @Accept json
+// @Produce json{{if .PathParam}}
+// @Param id query int64 true "id"{{end }}
+{{- if .RequestType }}
+// @Param {{ if eq .Method "get" }}query{{ else }}body{{ end }} {{ .TypesPackageName }}.{{ .RequestType }}
+{{- end }}
+// @Success 200 {{if .ResponseType}}{object} {{.TypesPackageName}}.{{.ResponseType}} {{ else }}string success {{ end }}
+// @Failure 200 {object} gina.Response 根据Code表示不同类型的错误
+// @Router {{ .Path }} [{{ .Method}}]
 func {{ .HandlerName }}(ctx *gin.Context) {
 {{if .PathParam}} id := helper.StringToInt64(ctx.Param("{{.PathParam}}"))
 if helper.IsValidNumber(id) == false {
@@ -133,6 +144,9 @@ func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerP
 	for _, route := range service.Routes {
 		self.HandlerPackName[strings.ToLower(route.Name+service.Name)] = packageName
 		logicData := map[string]string{
+			"Summary":          route.Summary,
+			"Path":             fmt.Sprintf("/%s/%s", self.GroupName, route.Path),
+			"Method":           route.Method,
 			"HandlerName":      helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(route.Name),
 			"RequestType":      route.RequestType,
 			"ResponseType":     route.ResponseType,
@@ -177,6 +191,9 @@ func (self *HttpGenerator) tileHandlerWrite(service *ServiceSpec, nowLogicPath s
 		var builder strings.Builder
 		newName := strings.ToLower(route.Name)
 		logicData := map[string]interface{}{
+			"Summary":          route.Summary,
+			"Path":             fmt.Sprintf("/%s/%s", self.GroupName, route.Path),
+			"Method":           route.Method,
 			"PackageName":      packageName,
 			"HasTypes":         route.RequestType != "",
 			"TypesPackagePath": self.TypesPackagePath,

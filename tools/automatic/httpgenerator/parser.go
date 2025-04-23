@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/soryetong/greasyx/helper"
 )
 
 // PStruct parses the given content and returns a slice of TypesStructSpec structs.
@@ -61,32 +63,61 @@ func (self *HttpGenerator) parseFieldDeclaration(declaration string) (*FieldSpec
 func (self *HttpGenerator) PRoutesService(content string) (err error) {
 	var services []*ServiceSpec
 	// serviceRegex := regexp.MustCompile(`service\s+(\w+)\s*{([^}]*)}`)
-	serviceRegex := regexp.MustCompile(`service\s+(\w+)(?:\s+Group\s+([\w,]+))?\s*{([^}]*)}`)
+	// serviceRegex := regexp.MustCompile(`service\s+(\w+)(?:\s+Group\s+([\w,]+))?\s*{([^}]*)}`)
+	serviceRegex := regexp.MustCompile(`(?m)(?:\s*@Summary\s+([^\n\r]+))?\s*service\s+(\w+)(?:\s+Group\s+([\w,]+))?\s*{([^}]*)}`)
 	serviceMatches := serviceRegex.FindAllStringSubmatch(content, -1)
 	for _, serviceMatch := range serviceMatches {
 		var service ServiceSpec
-		service.Name = serviceMatch[1]
-		service.Group = serviceMatch[2]
-		routesBlock := serviceMatch[3]
+		service.Summary = serviceMatch[1]
+		service.Name = serviceMatch[2]
+		service.Group = serviceMatch[3]
+		routesBlock := serviceMatch[4]
+		if service.Summary == "" {
+			service.Summary = service.Name
+		}
 
-		routeRegex := regexp.MustCompile(`(\w+)\s+([\w/:]+)(?::(\w+))?\s*(?:\(([\[\]\w]+)\))?\s*returns\s*(?:\(([\[\]\w]+)\))?`)
-		routeMatches := routeRegex.FindAllStringSubmatch(routesBlock, -1)
-		for _, routeMatch := range routeMatches {
-			nameArr := strings.Split(routeMatch[2], "/")
-			nameVal := routeMatch[2]
-			rustFulVal := routeMatch[3]
-			if len(nameArr) > 1 {
-				nameVal = nameArr[0]
-				rustFulVal = strings.Trim(nameArr[1], ":")
+		routeLineRegex := regexp.MustCompile(`(\w+)\s+([\w/:]+)(?::(\w+))?\s*(?:\(([\[\]\w]+)\))?\s*returns\s*(?:\(([\[\]\w]+)\))?`)
+		summaryRegex := regexp.MustCompile(`@Summary\s+(.+)`)
+		lines := strings.Split(routesBlock, "\n")
+		var lastSummary string
+
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
 			}
-			service.Routes = append(service.Routes, &RouteSpec{
-				Method:       routeMatch[1],
-				Path:         routeMatch[2],
-				Name:         nameVal,
-				RustFulKey:   rustFulVal,
-				RequestType:  routeMatch[4],
-				ResponseType: routeMatch[5],
-			})
+
+			if strings.HasPrefix(line, "@Summary") {
+				if matches := summaryRegex.FindStringSubmatch(line); len(matches) == 2 {
+					lastSummary = matches[1]
+				}
+				continue
+			}
+
+			if routeMatch := routeLineRegex.FindStringSubmatch(line); len(routeMatch) > 0 {
+				nameArr := strings.Split(routeMatch[2], "/")
+				nameVal := routeMatch[2]
+				rustFulVal := routeMatch[3]
+				if len(nameArr) > 1 {
+					nameVal = nameArr[0]
+					rustFulVal = strings.Trim(nameArr[1], ":")
+				}
+
+				if lastSummary == "" {
+					lastSummary = helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(nameVal)
+				}
+				service.Routes = append(service.Routes, &RouteSpec{
+					Method:       routeMatch[1],
+					Path:         routeMatch[2],
+					Name:         nameVal,
+					RustFulKey:   rustFulVal,
+					RequestType:  routeMatch[4],
+					ResponseType: routeMatch[5],
+					Summary:      lastSummary,
+				})
+
+				lastSummary = ""
+			}
 		}
 
 		services = append(services, &service)

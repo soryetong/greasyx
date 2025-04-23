@@ -30,6 +30,7 @@ func New{{.LogicName}}() *{{.LogicName}} {
 
 const logicContentTemplate = `
 
+// @Summary {{ .Summary }}
 func (self *{{.LogicName}}) {{.FuncName}}(ctx context.Context,{{if .PathParam}} {{.PathParam}} int64,{{end}}{{if .RequestType}} params *{{.TypesPackageName}}.{{.RequestType}}{{end}}) ({{if .ResponseType}} resp {{if not (hasPrefix .ResponseType "[]")}}*{{.TypesPackageName}}.{{end}}{{.ResponseType}},{{end}} err error) {
     // TODO implement
 
@@ -92,6 +93,7 @@ func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath str
 		self.LogicPackageName[mapKey] = packageName
 		self.LogicFuncName[mapKey] = newName
 		logicData := map[string]interface{}{
+			"Summary":          route.Summary,
 			"PackageName":      packageName,
 			"LogicName":        fmt.Sprintf("%sLogic", newName),
 			"FuncName":         newName,
@@ -185,6 +187,7 @@ func (self *HttpGenerator) combineLogicWrite(service *ServiceSpec, nowLogicPath 
 		newName := helper.CapitalizeFirst(route.Name)
 		self.LogicFuncName[strings.ToLower(route.Name)] = newName
 		logicData := map[string]string{
+			"Summary":          route.Summary,
 			"LogicName":        logicName,
 			"FuncName":         newName,
 			"RequestType":      route.RequestType,
@@ -194,7 +197,7 @@ func (self *HttpGenerator) combineLogicWrite(service *ServiceSpec, nowLogicPath 
 		}
 		funcSignature := fmt.Sprintf("func (self *%s) %s(", logicName, newName)
 		if strings.Contains(string(fileContent), funcSignature) {
-			console.Echo.Info(fmt.Sprintf("logic: %s 中 %s 方法已存在,不进行重写", filename, newName))
+			console.Echo.Info(fmt.Sprintf("logic: %s 中 %s 方法已存在，不进行重写", filename, newName))
 			continue
 		}
 

@@ -16,9 +16,10 @@ type FieldSpec struct {
 }
 
 type ServiceSpec struct {
-	Name   string
-	Group  string
-	Routes []*RouteSpec
+	Name    string
+	Group   string
+	Summary string
+	Routes  []*RouteSpec
 }
 
 type RouteSpec struct {
@@ -28,6 +29,7 @@ type RouteSpec struct {
 	Name         string
 	RequestType  string
 	ResponseType string
+	Summary      string
 }
 
 func NewGenerator(ctx *XContext) *HttpGenerator {

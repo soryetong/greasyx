@@ -20,6 +20,7 @@ type XContext struct {
 	Output         string
 	RouterPrefix   string
 	NeedRequestLog bool
+	GroupName      string
 
 	TypesPackageName string
 	TypesPackagePath string
@@ -65,18 +66,18 @@ func (self *HttpGenerator) Generate() (err error) {
 
 func (self *HttpGenerator) start(filename string) (err error) {
 	console.Echo.Debugf("开始API文件: %s 内容读取", filename)
+	filenameArr := strings.Split(filepath.Base(filename), ".")
+	if len(filenameArr) <= 0 {
+		return errors.New("文件名不合法")
+	}
+	self.GroupName = filenameArr[0]
+
 	fileContentByte, err := os.ReadFile(filename)
 	if err != nil {
 		return err
 	}
 	console.Echo.Debug("✅ 已完成API文件解析\n")
-
-	filenameArr := strings.Split(filepath.Base(filename), ".")
-	if len(filenameArr) <= 0 {
-		return errors.New("文件名不合法")
-	}
 	fileContent := string(fileContentByte)
-	groupName := filenameArr[0]
 
 	// Parse the structs and routes.
 	console.Echo.Debug("开始Struct内容解析")
@@ -114,7 +115,7 @@ func (self *HttpGenerator) start(filename string) (err error) {
 
 	// Generate router.
 	console.Echo.Debug("开始Router代码生成")
-	if err = self.GenRouter(groupName); err != nil {
+	if err = self.GenRouter(); err != nil {
 		return err
 	}
 	console.Echo.Debug("✅ 已完成Router代码生成\n")
@@ -125,6 +126,12 @@ func (self *HttpGenerator) start(filename string) (err error) {
 		return err
 	}
 	console.Echo.Debug("✅ 已完成Server代码生成\n")
+
+	console.Echo.Debug("开始Swagger文档生成")
+	if err = self.GenSwagger(); err != nil {
+		return err
+	}
+	console.Echo.Debug("✅ 已完成Swagger文档生成\n")
 	console.Echo.Infof("ℹ️ 提示: 文件: %s 代码生成已完成\n", filename)
 
 	return nil

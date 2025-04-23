@@ -14,6 +14,7 @@ import (
 	"github.com/soryetong/greasyx/gina"
 	"github.com/soryetong/greasyx/helper"
 	"github.com/soryetong/greasyx/libs/xauth"
+	"github.com/soryetong/greasyx/modules/cachemodule"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"golang.org/x/time/rate"
@@ -43,21 +44,25 @@ type LimitRule struct {
 
 type LimiterStore struct {
 	rules    []LimitRule
-	limiters sync.Map // key(string) => *rate.Limiter
+	limiters *cachemodule.Cache // key(string) => *rate.Limiter
 	mode     string
 	mu       sync.RWMutex
+	ttl      time.Duration
 }
 
 type config struct {
-	Mode  string      `json:"mode"`
-	Rules []LimitRule `json:"rules"`
+	Mode  string        `json:"mode"`
+	Ttl   time.Duration `json:"ttl"`
+	Rules []LimitRule   `json:"rules"`
 }
 
 // 初始化限流器
-func NewLimiterStore(rules []LimitRule, mode string) *LimiterStore {
+func NewLimiterStore(rules []LimitRule, mode string, ttl time.Duration) *LimiterStore {
 	return &LimiterStore{
-		rules: rules,
-		mode:  mode,
+		rules:    rules,
+		mode:     mode,
+		limiters: cachemodule.New(10000, 64, 0),
+		ttl:      ttl,
 	}
 }
 
@@ -67,7 +72,7 @@ func NewLimiterStoreFromFile(path string) *LimiterStore {
 		console.Echo.Fatalf("❌ 错误: 读取限流规则错误: %s", err)
 	}
 
-	return NewLimiterStore(cfg.Rules, cfg.Mode)
+	return NewLimiterStore(cfg.Rules, cfg.Mode, cfg.Ttl)
 }
 
 // 生成组合 key
@@ -99,12 +104,12 @@ func buildKey(ctx *gin.Context, keyType, uri string) string {
 
 // 获取限流器（不存在就创建）
 func (self *LimiterStore) getLimiter(key string, rule LimitRule) *rate.Limiter {
-	val, ok := self.limiters.Load(key)
-	if ok {
+	if val, found := self.limiters.Get(key); found {
 		return val.(*rate.Limiter)
 	}
+
 	limiter := rate.NewLimiter(rule.Rate, rule.Burst)
-	self.limiters.Store(key, limiter)
+	self.limiters.Set(key, limiter, self.ttl*time.Second)
 	return limiter
 }
 
