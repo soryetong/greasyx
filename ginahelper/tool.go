@@ -1,11 +1,17 @@
-package helper
+package ginahelper
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+)
+
+var (
+	ServerAddr  string
+	ServerIsTLS bool
 )
 
 func InitSugaredLogger() *zap.SugaredLogger {
@@ -63,4 +69,20 @@ func GetBrowser(userAgent string) string {
 	}
 
 	return "Unknown"
+}
+
+func GetServerAddr() string {
+	prefix := "http"
+	if ServerIsTLS {
+		prefix = "https"
+	}
+
+	addr := ServerAddr
+	addrArr := strings.Split(ServerAddr, ":")
+	if addrArr[0] == "" {
+		addrArr[0] = GetLocalIP()
+		addr = strings.Join(addrArr, ":")
+	}
+
+	return fmt.Sprintf("%s://%s", prefix, addr)
 }

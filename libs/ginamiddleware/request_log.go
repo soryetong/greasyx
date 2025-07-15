@@ -1,4 +1,4 @@
-package xmiddleware
+package ginamiddleware
 
 import (
 	"bytes"
@@ -11,8 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/soryetong/greasyx/gina"
-	"github.com/soryetong/greasyx/helper"
-	"github.com/soryetong/greasyx/libs/xauth"
+	"github.com/soryetong/greasyx/ginahelper"
+	"github.com/soryetong/greasyx/libs/ginaauth"
 	"go.uber.org/zap"
 )
 
@@ -33,7 +33,7 @@ type RequestLogData struct {
 
 func RequestLog() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		path, id := helper.GetRequestPath(ctx.Request.URL.Path, "/api")
+		path, id := ginahelper.GetRequestPath(ctx.Request.URL.Path, "/api")
 		body := make(map[string]interface{})
 		if id != 0 {
 			body["id"] = id
@@ -62,9 +62,9 @@ func RequestLog() gin.HandlerFunc {
 			Method:   ctx.Request.Method,
 			Path:     path,
 			Request:  string(request),
-			UserId:   xauth.GetTokenData[int64](ctx, "id"),
-			Username: xauth.GetTokenData[string](ctx, "username"),
-			Platform: helper.GetPlatform(userAgent) + " " + helper.GetBrowser(userAgent),
+			UserId:   ginaauth.GetTokenData[int64](ctx, "id"),
+			Username: ginaauth.GetTokenData[string](ctx, "username"),
+			Platform: ginahelper.GetPlatform(userAgent) + " " + ginahelper.GetBrowser(userAgent),
 		}
 
 		writer := &responseBodyWriter{

@@ -3,8 +3,8 @@ package gina
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/soryetong/greasyx/libs/xerror"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
+	"github.com/soryetong/greasyx/libs/ginaerror"
 	"net/http"
 	"time"
 )
@@ -38,15 +38,15 @@ func Result(ctx *gin.Context, code int64, data interface{}, msg string) {
 }
 
 func Success(ctx *gin.Context, data interface{}) {
-	Result(ctx, xerror.OK, data, "success")
+	Result(ctx, ginaerror.OK, data, "success")
 }
 
 func SuccessWithMessage(ctx *gin.Context, msg string) {
-	Result(ctx, xerror.OK, nil, msg)
+	Result(ctx, ginaerror.OK, nil, msg)
 }
 
 func FailWithMessage(ctx *gin.Context, msg string) {
-	Result(ctx, xerror.Error, nil, msg)
+	Result(ctx, ginaerror.Error, nil, msg)
 }
 
 func Fail(ctx *gin.Context, code int64, msg ...string) {
@@ -54,7 +54,7 @@ func Fail(ctx *gin.Context, code int64, msg ...string) {
 	if len(msg) > 0 {
 		message = msg[0]
 	} else {
-		message = xerror.GetErrorMessage(code)
+		message = ginaerror.GetErrorMessage(code)
 	}
 
 	Result(ctx, code, nil, message)
@@ -67,5 +67,5 @@ func useTime(c *gin.Context) string {
 		return ""
 	}
 
-	return fmt.Sprintf("%.6f", float64(stopTime-helper.InterfaceToInt64(startTime))/1000000)
+	return fmt.Sprintf("%.6f", float64(stopTime-ginahelper.InterfaceToInt64(startTime))/1000000)
 }

@@ -2,17 +2,15 @@ package httpmodule
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/soryetong/greasyx/console"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 )
 
 type IHttp struct {
@@ -29,11 +27,12 @@ type IHttp struct {
 }
 
 func (self *IHttp) Init(caller interface{}, addr string, timeout time.Duration, engine *gin.Engine) {
-	self.name = helper.GetCallerName(caller)
+	self.name = ginahelper.GetCallerName(caller)
 	self.exit = make(chan error)
 	self.listenAddr = addr
 	self.timeout = timeout
 	self.Engine = engine
+	ginahelper.ServerAddr = addr
 }
 
 func (self *IHttp) OnInit() {
@@ -57,7 +56,8 @@ func (self *IHttp) Start() error {
 	}()
 
 	self.tls = false
-	console.Echo.Infof("✅ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
+	ginahelper.ServerIsTLS = false
+	console.Echo.Infof("✅ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, ginahelper.GetServerAddr())
 
 	return self.running()
 }
@@ -72,7 +72,8 @@ func (self *IHttp) StartTLS(certFile, keyFile string) error {
 	}()
 
 	self.tls = true
-	console.Echo.Infof("✅ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, self.getServerAddr())
+	ginahelper.ServerIsTLS = true
+	console.Echo.Infof("✅ 提示: 服务 %s 启动成功，地址为: %s\n", self.name, ginahelper.GetServerAddr())
 
 	return self.running()
 }
@@ -100,20 +101,4 @@ func (self *IHttp) running() error {
 			return nil
 		}
 	}
-}
-
-func (self *IHttp) getServerAddr() string {
-	prefix := "http"
-	if self.tls {
-		prefix = "https"
-	}
-
-	addr := self.listenAddr
-	addrArr := strings.Split(self.listenAddr, ":")
-	if addrArr[0] == "" {
-		addrArr[0] = helper.GetLocalIP()
-		addr = strings.Join(addrArr, ":")
-	}
-
-	return fmt.Sprintf("%s://%s", prefix, addr)
 }

@@ -5,10 +5,11 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/soryetong/greasyx/console"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/soryetong/greasyx/tools/automatic/config"
 )
 
@@ -20,6 +21,15 @@ import (
 	"{{ .HandlerPackPath}}"
 )
 
+func Init{{.NowGroupName}}Router(routerGroup *gin.RouterGroup) {
+{{range .Routes}}{{.GroupName}}Group := routerGroup.Group("/{{.RouteGroup}}")
+{{"{"}}{{range .Routes}}
+	{{.GroupName}}Group.{{.Method}}("/{{.Path}}", {{.HandlerPackName}}.{{.HandlerName}}){{end}}
+{{"}"}}{{end}}
+}
+`
+
+const routerFuncContent = `
 func Init{{.NowGroupName}}Router(routerGroup *gin.RouterGroup) {
 {{range .Routes}}{{.GroupName}}Group := routerGroup.Group("/{{.RouteGroup}}")
 {{"{"}}{{range .Routes}}
@@ -73,12 +83,12 @@ func (self *HttpGenerator) GenRouter() (err error) {
 		Routes:          []RouteGroupTemplateData{},
 	}
 
-	newFileName := ""
+	// newFileName := ""
 	for _, service := range self.Services {
-		templateData.NowGroupName = helper.CapitalizeFirst(service.Name)
+		templateData.NowGroupName = ginahelper.UcFirst(service.Name)
 		newGroupName := strings.ToLower(service.Name[:1]) + service.Name[1:]
-		split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
-		newFileName = strings.ToLower(strings.Join(split, "_"))
+		// split := strings.Split(ginahelper.SeparateCamel(service.Name, "/"), "/")
+		// newFileName = strings.ToLower(strings.Join(split, "_"))
 		group := RouteGroupTemplateData{
 			GroupName:  newGroupName,
 			RouteGroup: strings.ToLower(groupName),
@@ -90,7 +100,7 @@ func (self *HttpGenerator) GenRouter() (err error) {
 				GroupName:       newGroupName,
 				Method:          strings.ToUpper(route.Method),
 				Path:            strings.ToLower(route.Path),
-				HandlerName:     helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(route.Name),
+				HandlerName:     ginahelper.UcFirst(service.Name) + route.Name,
 				HandlerPackName: self.HandlerPackName[strings.ToLower(route.Name+service.Name)],
 			}
 			group.Routes = append(group.Routes, routeData)
@@ -98,26 +108,71 @@ func (self *HttpGenerator) GenRouter() (err error) {
 		templateData.Routes = append(templateData.Routes, group)
 	}
 
-	var builder strings.Builder
-	tmpl, err := template.New("router").Parse(routerContentTemplate)
-	if err != nil {
-		return err
-	}
+	// filename := filepath.Join(nowRouterPath, "enter.go")
+	filename := filepath.Join(nowRouterPath, fmt.Sprintf("%s.go", self.Domain))
+	_, err = os.Stat(filename)
+	if os.IsNotExist(err) {
+		var builder strings.Builder
+		tmpl, err := template.New("router").Parse(routerContentTemplate)
+		if err != nil {
+			return err
+		}
 
-	if err = tmpl.Execute(&builder, templateData); err != nil {
-		return err
-	}
+		if err = tmpl.Execute(&builder, templateData); err != nil {
+			return err
+		}
 
-	filename := filepath.Join(nowRouterPath, fmt.Sprintf("%s.go", newFileName))
-	file, err := os.Create(filename)
-	defer file.Close()
-	if err != nil {
-		return err
-	}
+		// filename := filepath.Join(nowRouterPath, fmt.Sprintf("%s.go", newFileName))
+		file, err := os.Create(filename)
+		defer file.Close()
+		if err != nil {
+			return err
+		}
 
-	console.Echo.Info("正在生成路由文件: ", filename)
-	if _, err = file.WriteString(builder.String()); err != nil {
-		return err
+		console.Echo.Info("正在生成路由文件: ", filename)
+		if _, err = file.WriteString(builder.String()); err != nil {
+			return err
+		}
+	} else {
+		// 文件已存在时，需要替换现有Init函数
+		// 1. 读出现有文件内容
+		bytes, err := os.ReadFile(filename)
+		if err != nil {
+			return err
+		}
+		content := string(bytes)
+
+		// 2. 渲染出新的Init函数
+		var builder strings.Builder
+		tmpl, err := template.New("routerFunc").Parse(routerFuncContent)
+		if err != nil {
+			return err
+		}
+
+		if err = tmpl.Execute(&builder, templateData); err != nil {
+			return err
+		}
+
+		newInitFunc := builder.String()
+
+		// 3. 检查是不是已有Init函数
+		re := regexp.MustCompile(
+			`func Init` + templateData.NowGroupName + `Router\s*\([^)]*\)\s*\{[\s\S]*?\n\}`,
+		)
+		if re.FindStringIndex(content) == nil {
+			//不存在 -> 直接附加到末尾
+			content += "\n" + newInitFunc + "\n"
+		} else {
+			//存在 -> 进行替换
+			content = re.ReplaceAllString(content, newInitFunc)
+		}
+
+		// 4. 写回文件
+		if err = os.WriteFile(filename, []byte(content), 0644); err != nil {
+			return err
+		}
+
+		console.Echo.Info("正在向现有路由文件中添加Init函数到末尾: ", filename)
 	}
 	self.formatFileWithGofmt(filename)
 
@@ -131,7 +186,7 @@ const enterGoTemplate = `package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/soryetong/greasyx/libs/xmiddleware"
+	"github.com/soryetong/greasyx/libs/ginamiddleware"
 	"github.com/spf13/viper"
 	"net/http"
 )
@@ -140,10 +195,10 @@ func InitRouter() *gin.Engine {
 	setMode()
 
 	r := gin.Default()
-	fs := "/uploads"
+	fs := "/static"
 	r.StaticFS(fs, http.Dir("./"+fs))
 
-	r.Use(xmiddleware.Begin()).Use(xmiddleware.Cross()){{if .NeedRequestLog}}.Use(xmiddleware.RequestLog()){{end}}
+	r.Use(ginamiddleware.Begin()).Use(ginamiddleware.Cross()){{if .NeedRequestLog}}.Use(ginamiddleware.RequestLog()){{end}}
 	publicGroup := r.Group("{{ .RouterPrefix}}")
 	{
 		// 健康监测
@@ -156,14 +211,14 @@ func InitRouter() *gin.Engine {
 
 	{{ if eq .GroupName "Auth" }}
 	privateAuthGroup := r.Group("{{ .RouterPrefix}}")
-	privateAuthGroup.Use(xmiddleware.Casbin()).Use(xmiddleware.Jwt())
+	privateAuthGroup.Use(ginamiddleware.Jwt()).Use(ginamiddleware.Casbin())
 	{
 		{{.InitPrivateAuthFunctions}}(privateAuthGroup)
 	}{{ end }}
 
 	{{ if eq .GroupName "Token" }}
 	privateTokenGroup := r.Group("{{ .RouterPrefix}}")
-	privateTokenGroup.Use(xmiddleware.Jwt())
+	privateTokenGroup.Use(ginamiddleware.Jwt())
 	{
 		{{.InitPrivateTokenFunctions}}(privateTokenGroup)
 	}{{ end }}
@@ -282,9 +337,9 @@ func (self *HttpGenerator) updateEnterGo(nowRouterPath, newRouter string) (err e
 		if returnIndex != -1 {
 			newContent = append(newContent[:returnIndex], fmt.Sprintf("\t%sGroup := r.Group(\"%s\")\n", groupName, self.RouterPrefix))
 			if nowGroup == config.Group_Auth {
-				newContent = append(newContent, "\t"+groupName+"Group.Use(xmiddleware.Casbin()).Use(xmiddleware.Jwt())")
+				newContent = append(newContent, "\t"+groupName+"Group.Use(ginamiddleware.Casbin()).Use(ginamiddleware.Jwt())")
 			} else if nowGroup == config.Group_Token {
-				newContent = append(newContent, "\t"+groupName+"Group.Use(xmiddleware.Jwt())")
+				newContent = append(newContent, "\t"+groupName+"Group.Use(ginamiddleware.Jwt())")
 			}
 			newContent = append(newContent, "\t{")
 			newContent = append(newContent, "\t\t"+newRouter+"("+groupName+"Group)")

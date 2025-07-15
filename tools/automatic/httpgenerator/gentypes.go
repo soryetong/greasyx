@@ -104,13 +104,19 @@ func (self *HttpGenerator) writeToTypeFile(filename, structContent string) error
 func (self *HttpGenerator) GenTypes() (err error) {
 	typePath := filepath.Join(self.Output, self.TypesPackageName)
 	self.TypesPackagePath = filepath.Join(self.ModuleName, typePath)
+	var typeFilePrefix string
+	if self.Domain != "" {
+		typeFilePrefix = fmt.Sprintf("%s_", self.Domain)
+	}
 	for _, s := range self.Types {
 		content := self.formatStruct(s)
 		var filename string
-		if strings.HasSuffix(s.Name, "Req") {
-			filename = filepath.Join(typePath, "request.go")
+		if strings.HasPrefix(s.Name, "Common") {
+			filename = filepath.Join(typePath, "common.go")
+		} else if strings.HasSuffix(s.Name, "Req") {
+			filename = filepath.Join(typePath, fmt.Sprintf("%s%s", typeFilePrefix, "request.go"))
 		} else if strings.HasSuffix(s.Name, "Resp") {
-			filename = filepath.Join(typePath, "response.go")
+			filename = filepath.Join(typePath, fmt.Sprintf("%s%s", typeFilePrefix, "response.go"))
 		} else {
 			filename = filepath.Join(typePath, "common.go")
 		}

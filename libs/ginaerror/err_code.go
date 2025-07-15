@@ -1,4 +1,4 @@
-package xerror
+package ginaerror
 
 // 1开头系统校验类,2开头用户及用户行为校验类
 const (

@@ -1,4 +1,4 @@
-package helper
+package ginahelper
 
 import (
 	"net"
@@ -8,13 +8,46 @@ import (
 )
 
 func GetLocalIP() string {
-	addrList, err := net.InterfaceAddrs()
+	interfaces, err := net.Interfaces()
 	if err != nil {
-		return ""
+		return "unknown"
 	}
-	for _, addr := range addrList {
-		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-			return ipNet.IP.String()
+
+	for _, iface := range interfaces {
+		// 忽略不活跃的接口、回环接口
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		// 排除虚拟接口（如 docker、utun 等）
+		if strings.HasPrefix(iface.Name, "docker") || strings.HasPrefix(iface.Name, "utun") {
+			continue
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+
+			if ip == nil || ip.IsLoopback() {
+				continue
+			}
+
+			ip = ip.To4()
+			if ip == nil {
+				continue // 只处理 IPv4
+			}
+
+			return ip.String()
 		}
 	}
 

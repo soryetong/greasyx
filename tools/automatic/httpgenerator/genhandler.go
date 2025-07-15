@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/soryetong/greasyx/tools/automatic/config"
 )
 
@@ -19,8 +19,8 @@ import (
 	"github.com/soryetong/greasyx/gina"
 	"{{ .LogicPackagePath}}"
 	{{if .HasTypes}} "{{.TypesPackagePath}}" {{end}}
-	{{if .HasTypes}} "github.com/soryetong/greasyx/libs/xerror" {{end}}
-	{{if .HasRestFul}} "github.com/soryetong/greasyx/helper" {{end}}
+	{{if .HasTypes}} "github.com/soryetong/greasyx/libs/ginaerror" {{end}}
+	{{if .HasRestFul}} "github.com/soryetong/greasyx/ginahelper" {{end}}
 )
 `
 
@@ -38,14 +38,14 @@ const handlerContentTemplate = `
 // @Failure 200 {object} gina.Response 根据Code表示不同类型的错误
 // @Router {{ .Path }} [{{ .Method}}]
 func {{ .HandlerName }}(ctx *gin.Context) {
-{{if .PathParam}} id := helper.StringToInt64(ctx.Param("{{.PathParam}}"))
-if helper.IsValidNumber(id) == false {
+{{if .PathParam}} id := ginahelper.StringToInt64(ctx.Param("{{.PathParam}}"))
+if ginahelper.IsValidNumber(id) == false {
 		gina.FailWithMessage(ctx, "参数错误")
 		return
 	}
 {{end}}{{if .RequestType}}	var req {{.TypesPackageName}}.{{.RequestType}}
 	if err := ctx.ShouldBind(&req); err != nil {
-		gina.FailWithMessage(ctx, xerror.Trans(err))
+		gina.FailWithMessage(ctx, ginaerror.Trans(err))
 		return
 	}
 
@@ -83,7 +83,7 @@ func (self *HttpGenerator) GenHandler() (err error) {
 			continue
 		}
 
-		logicTempPath := helper.SeparateCamel(datum.Name, "/")
+		logicTempPath := ginahelper.SeparateCamel(datum.Name, "/")
 		if self.FileType == config.Logic_Handler_File_Type {
 			handlerPath = filepath.Join(handlerPath, logicTempPath)
 			self.HandlerPackPath[strings.ToLower(datum.Name)] = filepath.Join(self.ModuleName, handlerPath)
@@ -127,7 +127,7 @@ func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerP
 		}
 	}
 
-	split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
+	split := strings.Split(ginahelper.SeparateCamel(service.Name, "/"), "/")
 	packageName := "handler"
 	headerData := map[string]interface{}{
 		"PackageName":      packageName,
@@ -147,7 +147,7 @@ func (self *HttpGenerator) combineHandlerWrite(service *ServiceSpec, nowHandlerP
 			"Summary":          route.Summary,
 			"Path":             fmt.Sprintf("/%s/%s", self.GroupName, route.Path),
 			"Method":           route.Method,
-			"HandlerName":      helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(route.Name),
+			"HandlerName":      ginahelper.UcFirst(service.Name) + route.Name,
 			"RequestType":      route.RequestType,
 			"ResponseType":     route.ResponseType,
 			"TypesPackageName": self.TypesPackageName,
@@ -183,7 +183,7 @@ func (self *HttpGenerator) tileHandlerWrite(service *ServiceSpec, nowLogicPath s
 		return err
 	}
 
-	split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
+	split := strings.Split(ginahelper.SeparateCamel(service.Name, "/"), "/")
 	for _, route := range service.Routes {
 		packageName := strings.ToLower(split[len(split)-1])
 		self.HandlerPackName[strings.ToLower(route.Name+service.Name)] = packageName
@@ -198,7 +198,7 @@ func (self *HttpGenerator) tileHandlerWrite(service *ServiceSpec, nowLogicPath s
 			"HasTypes":         route.RequestType != "",
 			"TypesPackagePath": self.TypesPackagePath,
 			"LogicPackagePath": self.LogicPackagePath[strings.ToLower(service.Name)],
-			"HandlerName":      helper.CapitalizeFirst(route.Name),
+			"HandlerName":      route.Name,
 			"RequestType":      route.RequestType,
 			"ResponseType":     route.ResponseType,
 			"TypesPackageName": self.TypesPackageName,

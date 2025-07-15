@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/soryetong/greasyx/console"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,7 +28,7 @@ var serviceMgrCmd = &cobra.Command{
 		for _, service := range serviceList {
 			eg.Go(func() error {
 				if err := service.OnStart(); err != nil {
-					err = fmt.Errorf("服务 %s: %v", helper.GetCallerName(service), err)
+					err = fmt.Errorf("服务 %s: %v", ginahelper.GetCallerName(service), err)
 					console.Echo.Errorf("❌  错误: %s", err)
 
 					return err

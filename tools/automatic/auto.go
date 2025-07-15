@@ -7,10 +7,11 @@ import (
 
 	"github.com/manifoldco/promptui"
 	"github.com/soryetong/greasyx/console"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/soryetong/greasyx/tools/automatic/config"
 	"github.com/soryetong/greasyx/tools/automatic/httpgenerator"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -27,8 +28,8 @@ var autoCCmd = &cobra.Command{
 }
 
 func runFunc(cmd *cobra.Command, args []string) {
-	console.Echo = helper.InitSugaredLogger()
-	moduleName, err := helper.GetModuleName()
+	console.Echo = ginahelper.InitSugaredLogger()
+	moduleName, err := ginahelper.GetModuleName()
 	if err != nil {
 		console.Echo.Fatalf("❌ 错误: 无法获取当前项目Module名, 错误为: [%v] \n", err)
 	}
@@ -53,14 +54,39 @@ func runFunc(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	hasConfig := false
+	if argMap["config"] != "" {
+		viper.SetConfigFile(argMap["config"])
+		if err := viper.ReadInConfig(); err != nil {
+			console.Echo.Fatalf("❌ 错误: 读取配置文件错误: %s", err)
+		}
+		hasConfig = true
+	}
+
 	routerEnterGo := filepath.Join(argMap["output"], "router", "enter.go")
 	_, err = os.Stat(routerEnterGo)
 	routerPrefix := "/api/v1"
 	needRequestLog := "NO"
+	port := ":9888"
 	if os.IsNotExist(err) {
-		routerPrefixP := promptForInput("自定义的路由前缀 - 选填(默认 \"/api/v1\" )")
-		if routerPrefixP != "" {
-			routerPrefix = routerPrefixP
+		var routerPrefixZ string
+		var portZ string
+		if !hasConfig {
+			routerPrefixZ = promptForInput("自定义的路由前缀 - 选填(默认 \"/api/v1\" )")
+			portZ = promptForInput("自定义的服务器端口 - 选填(默认 :9888 )")
+		} else {
+			routerPrefixZ = viper.GetString("App.RouterPrefix")
+			portZ = viper.GetString("App.Addr")
+			if portZ == "" {
+				viper.SetDefault("App.Addr", ":9888")
+			}
+		}
+
+		if routerPrefixZ != "" {
+			routerPrefix = routerPrefixZ
+		}
+		if portZ != "" {
+			port = portZ
 		}
 
 		items := []string{"YES", "NO"}
@@ -75,6 +101,7 @@ func runFunc(cmd *cobra.Command, args []string) {
 		xCtx.Output = argMap["output"]
 		xCtx.Src = argMap["src"]
 		xCtx.RouterPrefix = "/" + strings.Trim(routerPrefix, "/")
+		xCtx.Port = port
 		xCtx.NeedRequestLog = needRequestLog == "YES"
 		xCtx.TypesPackageName = typePackageName
 		xCtx.FileType = config.FileType(strings.ToUpper(argMap["type"]))

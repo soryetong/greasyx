@@ -20,7 +20,10 @@ type XContext struct {
 	Output         string
 	RouterPrefix   string
 	NeedRequestLog bool
+	Port           string
 	GroupName      string
+	FileName       string
+	Domain         string
 
 	TypesPackageName string
 	TypesPackagePath string
@@ -70,7 +73,12 @@ func (self *HttpGenerator) start(filename string) (err error) {
 	if len(filenameArr) <= 0 {
 		return errors.New("文件名不合法")
 	}
-	self.GroupName = filenameArr[0]
+	self.FileName = filenameArr[0]
+	parts := strings.FieldsFunc(self.FileName, func(r rune) bool {
+		return r == ',' || r == ';' || r == '|' || r == ':' || r == '_' || r == '-'
+	})
+	self.Domain = parts[0]
+	self.GroupName = strings.Join(parts, "/")
 
 	fileContentByte, err := os.ReadFile(filename)
 	if err != nil {

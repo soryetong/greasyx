@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 )
 
 // PStruct parses the given content and returns a slice of TypesStructSpec structs.
@@ -95,16 +95,14 @@ func (self *HttpGenerator) PRoutesService(content string) (err error) {
 			}
 
 			if routeMatch := routeLineRegex.FindStringSubmatch(line); len(routeMatch) > 0 {
-				nameArr := strings.Split(routeMatch[2], "/")
-				nameVal := routeMatch[2]
-				rustFulVal := routeMatch[3]
-				if len(nameArr) > 1 {
-					nameVal = nameArr[0]
-					rustFulVal = strings.Trim(nameArr[1], ":")
+				uriVal, rustFulVal := ginahelper.ConvertRestfulURLToUri(routeMatch[2])
+				nameArr := strings.Split(uriVal, "/")
+				for i, s := range nameArr {
+					nameArr[i] = ginahelper.UcFirst(s)
 				}
-
+				nameVal := strings.Join(nameArr, "")
 				if lastSummary == "" {
-					lastSummary = helper.CapitalizeFirst(service.Name) + helper.CapitalizeFirst(nameVal)
+					lastSummary = ginahelper.UcFirst(service.Name) + nameVal
 				}
 				service.Routes = append(service.Routes, &RouteSpec{
 					Method:       routeMatch[1],

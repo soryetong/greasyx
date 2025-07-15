@@ -6,6 +6,34 @@
 
 <p align="center">千人千面，它可能不适合你，但完全满足我的需求，欢迎技术讨论，但不喜勿喷</p>
 
+## 注意 ⚠️⚠️⚠️
+
+- `helper`、`xerror`、`xauth`、`xmiddlerware`、`xapp` 已更名为 `ginahelper`、`ginaerror`、`ginaauth`、`ginamiddlerware`、`ginasrv`，请注意替换
+
+## 新功能
+
+- 添加了 `ginaoss` oss 功能，目前支持本地、七牛上传功能，需要先看一下配置模块，示例代码
+
+```go
+func UploadFile(ctx *gin.Context) {
+    file, header, err := ctx.Request.FormFile("file")
+    if err != nil {
+        gina.FailWithMessage(ctx, ginaerror.Trans(err))
+        return
+    }
+    defer file.Close()
+    
+    uploadRet, err := ginaoss.NewQiNiu().Upload(file, header)
+    if err != nil {
+        gina.FailWithMessage(ctx, ginaerror.Trans(err))
+        return
+    }
+    
+    gina.Success(ctx, map[string]string{"url": uploadRet.Url})
+    return
+}
+```
+
 ## 介绍
 
 - 它只是我为了快速构建自己的项目而创建的，让我不必在每新建一个新项目都复制这些代码
@@ -120,8 +148,8 @@ privateTokenGroup.Use(middleware.Jwt())
 5. 自动生成代码
 
 ```bash
-# src表示api文件路径，output表示生成的代码路径
-go run main.go autoc src=./api_desc output=./internal
+# src表示api文件路径，output表示生成的代码路径，[config表示配置文件路径，非必要]
+go run main.go autoc src=./api_desc output=./internal config=./config.json
 
 # 或者直接运行，按照指令输入
 go run main.go autoc
@@ -201,6 +229,14 @@ func main() {
     "ModePath": "",
     "remark": "当你使用了多个数据库时，需要指定一个数据库名，只有一个时，可以忽略这个配置",
     "DbName": "mysql"
+  },
+  "Oss": {
+    "Type": "local",
+    "SavePath": "./static/resource/",
+    "Url": "http://192.168.5.122:19001",
+    "AccessKey": "",
+    "SecretKey": "",
+    "BucketName": ""
   }
 }
 ```
@@ -245,6 +281,14 @@ func main() {
 - `Casbin`：表示Casbin配置，包括模式路径等, 没有该路径时会使用 `greasyx` 提供的默认配置
 
     - 目前只支持 MySQL 
+
+
+- `Oss`：表示Oss配置
+
+    - `Type`：目前只支持 `local`、`qiniu`
+    - `SavePath`：表示你要存储的路径
+    - `Url`：就是你图片的访问地址
+    - `AccessKey`、`SecretKey`、`BucketName`：非 `local` 时的必要配置
 
 ## 提供的模块
 

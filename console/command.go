@@ -3,13 +3,13 @@ package console
 import (
 	"strings"
 
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
 
 func init() {
-	Echo = helper.InitSugaredLogger()
+	Echo = ginahelper.InitSugaredLogger()
 }
 
 type runFunc func(cmd *cobra.Command, args []string)

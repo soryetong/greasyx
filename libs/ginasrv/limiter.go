@@ -1,4 +1,4 @@
-package xapp
+package ginasrv
 
 import (
 	"encoding/json"
@@ -12,8 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/soryetong/greasyx/console"
 	"github.com/soryetong/greasyx/gina"
-	"github.com/soryetong/greasyx/helper"
-	"github.com/soryetong/greasyx/libs/xauth"
+	"github.com/soryetong/greasyx/ginahelper"
+	"github.com/soryetong/greasyx/libs/ginaauth"
 	"github.com/soryetong/greasyx/modules/cachemodule"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -78,7 +78,7 @@ func NewLimiterStoreFromFile(path string) *LimiterStore {
 // 生成组合 key
 func buildKey(ctx *gin.Context, keyType, uri string) string {
 	ip := ctx.ClientIP()
-	userId := xauth.GetTokenData[int64](ctx, "id")
+	userId := ginaauth.GetTokenData[int64](ctx, "id")
 	parts := strings.Split(keyType, "+")
 	var vals []string
 	for _, p := range parts {
@@ -121,7 +121,7 @@ func (self *LimiterStore) Allow(ctx *gin.Context) bool {
 	if len(self.rules) == 0 {
 		return true
 	}
-	uri := helper.ConvertToRestfulURL(strings.TrimPrefix(ctx.Request.URL.Path, viper.GetString("App.RouterPrefix")))
+	uri := ginahelper.ConvertToRestfulURL(strings.TrimPrefix(ctx.Request.URL.Path, viper.GetString("App.RouterPrefix")))
 	if self.mode == LimitRuleModeComm {
 		rule := self.rules[0]
 		key := buildKey(ctx, rule.KeyType, uri)
@@ -174,7 +174,7 @@ func WatchLimiterRulesFile(path string, store *LimiterStore) {
 		return
 	}
 
-	helper.SafeGo(func() {
+	ginahelper.SafeGo(func() {
 		defer watcher.Close()
 		for {
 			select {

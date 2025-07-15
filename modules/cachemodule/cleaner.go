@@ -3,7 +3,7 @@ package cachemodule
 import (
 	"time"
 
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 )
 
 // 启动后台协程定期清理所有过期项
@@ -13,7 +13,7 @@ func (c *Cache) startCleaner() {
 	}
 	c.cleanerStop = make(chan struct{})
 
-	helper.SafeGo(func() {
+	ginahelper.SafeGo(func() {
 		ticker := time.NewTicker(c.cleanInterval)
 		defer ticker.Stop()
 		for {

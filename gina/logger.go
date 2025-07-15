@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -196,7 +196,7 @@ func NewRotationScheduler(rotateFunc func()) *RotationScheduler {
 	}
 
 	rs.wg.Add(1)
-	helper.SafeGo(func() {
+	ginahelper.SafeGo(func() {
 		rs.scheduleRotation()
 	})
 
@@ -246,7 +246,7 @@ func NewCustomWrite(filepath string, maxSize, maxBackups, maxAge int, compress b
 	cw.initLogger(filepath, maxSize, maxBackups, maxAge, compress)
 
 	// 启动文件状态监控
-	helper.SafeGo(func() {
+	ginahelper.SafeGo(func() {
 		cw.monitorFile()
 	})
 

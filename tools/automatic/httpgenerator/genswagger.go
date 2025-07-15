@@ -189,7 +189,7 @@ func generateOpenAPIDoc(service ServiceSpecSwagger, output string) error {
 }
 
 func (self *HttpGenerator) GenSwagger() (err error) {
-	groupName := self.GroupName
+	groupName := self.FileName
 	structs, err := parseStructs("./" + self.Output + "/types")
 	if err != nil {
 		return err

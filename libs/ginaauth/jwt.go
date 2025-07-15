@@ -1,4 +1,4 @@
-package xauth
+package ginaauth
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/soryetong/greasyx/console"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/spf13/viper"
 )
 
@@ -39,8 +39,14 @@ func GenerateJwtToken(claimsMap jwt.MapClaims) (string, error) {
 	}
 	claimsMap["iat"] = time.Now().Unix()
 	claimsMap["nbf"] = time.Now().Unix()
-	if _, ok := claimsMap["exp"]; ok == false {
-		claimsMap["exp"] = time.Now().Add(time.Hour * 2).Unix()
+	if _, ok := claimsMap["exp"]; !ok {
+		expire := viper.GetInt64("Jwt.Expire")
+		if expire > 0 {
+			claimsMap["exp"] = time.Now().Add(time.Duration(expire) * time.Second).Unix()
+		} else {
+			console.Echo.Warnf("⚠️ 警告: Jwt.Expire 为空，使用默认值: 20 分钟\n")
+			claimsMap["exp"] = time.Now().Add(time.Minute * 20).Unix()
+		}
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claimsMap)
@@ -67,12 +73,12 @@ func ParseJwtToken(tokenString string) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("无效的 Token")
 }
 
-func GetTokenData[T helper.MapSupportedTypes](ctx context.Context, key string) T {
+func GetTokenData[T ginahelper.MapSupportedTypes](ctx context.Context, key string) T {
 	claimsMap, ok := ctx.Value("claims").(map[string]interface{})
 	if !ok {
 		var zero T
 		return zero
 	}
 
-	return helper.GetMapSpecificValue[T](claimsMap, key)
+	return ginahelper.GetMapSpecificValue[T](claimsMap, key)
 }

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/soryetong/greasyx/console"
-	"github.com/soryetong/greasyx/helper"
+	"github.com/soryetong/greasyx/ginahelper"
 	"github.com/soryetong/greasyx/tools/automatic/config"
 )
 
@@ -45,7 +45,7 @@ func (self *HttpGenerator) GenLogic() (err error) {
 			continue
 		}
 
-		logicTempPath := helper.SeparateCamel(datum.Name, "/")
+		logicTempPath := ginahelper.SeparateCamel(datum.Name, "/")
 		if self.FileType == config.Logic_Handler_File_Type {
 			logicPath = filepath.Join(logicPath, logicTempPath)
 			self.LogicPackagePath[strings.ToLower(datum.Name)] = filepath.Join(self.ModuleName, logicPath)
@@ -76,7 +76,7 @@ func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath str
 		return err
 	}
 
-	tempPackageName := helper.SeparateCamel(service.Name, "/")
+	tempPackageName := ginahelper.SeparateCamel(service.Name, "/")
 	split := strings.Split(tempPackageName, "/")
 	for _, route := range service.Routes {
 		filename := filepath.Join(nowLogicPath, fmt.Sprintf("%s.go", strings.ToLower(route.Name)))
@@ -86,7 +86,7 @@ func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath str
 		}
 
 		var builder strings.Builder
-		newName := helper.CapitalizeFirst(route.Name)
+		newName := route.Name
 		packageName := strings.ToLower(split[len(split)-1])
 		mapKey := strings.ToLower(newName)
 		self.LogicName[mapKey] = fmt.Sprintf("New%sLogic()", newName)
@@ -125,11 +125,11 @@ func (self *HttpGenerator) tileLogicWrite(service *ServiceSpec, nowLogicPath str
 }
 
 func (self *HttpGenerator) combineLogicWrite(service *ServiceSpec, nowLogicPath string) (err error) {
-	split := strings.Split(helper.SeparateCamel(service.Name, "/"), "/")
+	split := strings.Split(ginahelper.SeparateCamel(service.Name, "/"), "/")
 	filename := filepath.Join(nowLogicPath, fmt.Sprintf("%s.go", strings.ToLower(strings.Join(split, "_"))))
 
 	var hasTypes bool
-	logicName := fmt.Sprintf("%sLogic", helper.CapitalizeFirst(service.Name))
+	logicName := fmt.Sprintf("%sLogic", ginahelper.UcFirst(service.Name))
 	self.LogicName[strings.ToLower(service.Name)] = fmt.Sprintf("New%s()", logicName)
 	for _, route := range service.Routes {
 		if hasTypes == false {
@@ -184,7 +184,7 @@ func (self *HttpGenerator) combineLogicWrite(service *ServiceSpec, nowLogicPath 
 		return err
 	}
 	for _, route := range service.Routes {
-		newName := helper.CapitalizeFirst(route.Name)
+		newName := route.Name
 		self.LogicFuncName[strings.ToLower(route.Name)] = newName
 		logicData := map[string]string{
 			"Summary":          route.Summary,

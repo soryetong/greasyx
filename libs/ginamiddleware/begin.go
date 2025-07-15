@@ -1,4 +1,4 @@
-package xmiddleware
+package ginamiddleware
 
 import (
 	"github.com/gin-gonic/gin"
