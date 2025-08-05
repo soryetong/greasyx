@@ -1,3 +1,6 @@
+<h1 align="center">该项目不再更新，请移步，https://github.com/soryetong/gooze-starter </h1>
+
+
 <h1 align="center">greasyx</h1>
 
 <p align="center"> 这是一个为了快速构建一个go项目而生的Go+Gin的Web项目脚手架</p>
